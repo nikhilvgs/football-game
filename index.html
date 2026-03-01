@@ -222,6 +222,10 @@ function genPlayer(pos,tier){
   else if(p==='WR'){stats.spd=clamp(stats.spd+8,ranges[0],99);stats.cat=clamp(stats.cat+8,ranges[0],99);}
   else if(p==='RB'){stats.spd=clamp(stats.spd+6,ranges[0],99);stats.str=clamp(stats.str+6,ranges[0],99);}
   else if(p==='OL'){stats.str=clamp(stats.str+10,ranges[0],99);stats.sta=clamp(stats.sta+8,ranges[0],99);stats.spd=clamp(stats.spd-10,ranges[0],99);}
+  else if(p==='CB'){stats.spd=clamp(stats.spd+10,ranges[0],99);stats.cat=clamp(stats.cat+6,ranges[0],99);}
+  else if(p==='LB'){stats.str=clamp(stats.str+6,ranges[0],99);stats.spd=clamp(stats.spd+6,ranges[0],99);}
+  else if(p==='SF'){stats.spd=clamp(stats.spd+8,ranges[0],99);stats.cat=clamp(stats.cat+4,ranges[0],99);}
+  else if(p==='DL'){stats.str=clamp(stats.str+10,ranges[0],99);stats.sta=clamp(stats.sta+8,ranges[0],99);stats.spd=clamp(stats.spd-8,ranges[0],99);}
   const ovr=calcOVR(pos,stats);
   const age=21+Math.floor(Math.random()*11);
   const salary=Math.floor(ovr/8);
@@ -236,6 +240,10 @@ function calcOVR(pos,stats){
     case 'WR':w={spd:0.35,str:0.05,arm:0.05,cat:0.4,sta:0.15};break;
     case 'RB':w={spd:0.35,str:0.25,arm:0.0,cat:0.1,sta:0.3};break;
     case 'OL':w={spd:0.05,str:0.45,arm:0.0,cat:0.0,sta:0.5};break;
+    case 'CB':w={spd:0.4,str:0.05,arm:0.0,cat:0.35,sta:0.2};break;
+    case 'LB':w={spd:0.3,str:0.3,arm:0.0,cat:0.1,sta:0.3};break;
+    case 'SF':w={spd:0.35,str:0.05,arm:0.0,cat:0.3,sta:0.3};break;
+    case 'DL':w={spd:0.1,str:0.45,arm:0.0,cat:0.0,sta:0.45};break;
     default:w={spd:0.2,str:0.2,arm:0.2,cat:0.2,sta:0.2};break;
   }
   return Math.round(stats.spd*w.spd+stats.str*w.str+stats.arm*w.arm+stats.cat*w.cat+stats.sta*w.sta);
@@ -249,6 +257,13 @@ function genRoster(){
   roster.push(genPlayer('WR3',3));
   roster.push(genPlayer('RB',2));
   for(let i=0;i<5;i++)roster.push(genPlayer('OL',3));
+  // Defensive players
+  roster.push(genPlayer('CB',3));
+  roster.push(genPlayer('CB',3));
+  roster.push(genPlayer('LB',3));
+  roster.push(genPlayer('LB',3));
+  roster.push(genPlayer('SF',3));
+  roster.push(genPlayer('DL',3));
   return roster;
 }
 
@@ -291,8 +306,8 @@ function simulateOtherGames(){
 
 function genDraftClass(){
   const dc=[];
-  const positions=['QB','WR1','WR2','RB','OL'];
-  for(let i=0;i<5;i++){
+  const positions=['QB','WR1','WR2','RB','OL','CB','LB'];
+  for(let i=0;i<7;i++){
     const pos=positions[i%positions.length];
     const tier=1+Math.floor(Math.random()*3); // tier 1-3
     dc.push(genPlayer(pos,tier));
@@ -302,11 +317,19 @@ function genDraftClass(){
 
 function genFreeAgents(){
   const fa=[];
-  const positions=['QB','WR1','WR2','WR3','RB','OL'];
-  const count=8+Math.floor(Math.random()*5); // 8-12 players
+  // Guarantee some good defensive free agents (tier 1-2)
+  const defPositions=['CB','LB','SF','DL'];
+  for(let i=0;i<4;i++){
+    const pos=defPositions[i];
+    const tier=1+Math.floor(Math.random()*2);
+    fa.push(genPlayer(pos,tier));
+  }
+  // Fill rest with mixed positions
+  const positions=['QB','WR1','WR2','WR3','RB','OL','CB','LB','SF','DL'];
+  const count=5+Math.floor(Math.random()*5); // 5-9 more players
   for(let i=0;i<count;i++){
     const pos=positions[Math.floor(Math.random()*positions.length)];
-    const tier=2+Math.floor(Math.random()*3); // tier 2-4
+    const tier=2+Math.floor(Math.random()*3);
     fa.push(genPlayer(pos,tier));
   }
   S.freeAgents=fa;
@@ -506,9 +529,8 @@ function cutPlayer(idx){
   const p=S.roster[idx];
   // Morale hit for all
   S.roster.forEach(pl=>pl.morale=clamp(pl.morale-5,0,100));
-  // Replace with tier 4 player of same position
-  const replacement=genPlayer(p.pos,4);
-  S.roster[idx]=replacement;
+  // Actually remove the player from the roster
+  S.roster.splice(idx,1);
   saveGame();
   document.getElementById('playerDetail').classList.remove('show');
   renderRoster();
@@ -517,8 +539,8 @@ function cutPlayer(idx){
 // === RENDER: FREE AGENTS ===
 function renderFreeAgents(){
   const el=document.getElementById('freeAgentContent');
-  const rosterFull=S.roster.length>=10;
-  let h='<div style="text-align:center;margin-bottom:8px"><span class="secondary">Credits:</span> <span class="gold">'+S.credits+'</span> | <span class="secondary">Roster:</span> '+S.roster.length+'/10</div>';
+  const rosterFull=S.roster.length>=16;
+  let h='<div style="text-align:center;margin-bottom:8px"><span class="secondary">Credits:</span> <span class="gold">'+S.credits+'</span> | <span class="secondary">Roster:</span> '+S.roster.length+'/16</div>';
   if(!S.freeAgents||S.freeAgents.length===0){
     genFreeAgents();}
   if(S.freeAgents.length===0){
@@ -545,12 +567,12 @@ function renderFreeAgents(){
 function signFreeAgent(idx){
   if(!S.freeAgents||idx<0||idx>=S.freeAgents.length)return;
   const p=S.freeAgents[idx];
-  if(S.roster.length>=10||S.credits<p.salary)return;
+  if(S.roster.length>=16||S.credits<p.salary)return;
   S.credits-=p.salary;
   S.roster.push(p);
   S.freeAgents.splice(idx,1);
   // Add a replacement free agent
-  const positions=['QB','WR1','WR2','WR3','RB','OL'];
+  const positions=['QB','WR1','WR2','WR3','RB','OL','CB','LB','SF','DL'];
   const pos=positions[Math.floor(Math.random()*positions.length)];
   const tier=2+Math.floor(Math.random()*3);
   S.freeAgents.push(genPlayer(pos,tier));
@@ -652,7 +674,7 @@ function renderDraft(){
 
 function draftPlayer(idx){
   const dp=S.draftClass[idx];
-  if(S.roster.length>=10){
+  if(S.roster.length>=16){
     // Cut lowest OVR non-QB
     let worstIdx=-1,worstOvr=Infinity;
     S.roster.forEach((p,i)=>{
@@ -1254,13 +1276,23 @@ function setupAIOff(){
 
 function setupPlayerDef(){
   const ly=y2y(G.los);
+  // Find roster defensive players
+  const rCBs=S.roster.filter(p=>p.pos==='CB');
+  const rLBs=S.roster.filter(p=>p.pos==='LB');
+  const rSFs=S.roster.filter(p=>p.pos==='SF');
+  const rDLs=S.roster.filter(p=>p.pos==='DL');
+  // Default stats for fallback
+  const defStats={spd:55,str:55};
   const dp=[
-    {x:W/2-140,y:ly+35,role:'cb',n:21},{x:W/2+140,y:ly+35,role:'cb',n:24},
-    {x:W/2-45,y:ly+12,role:'lb',n:55},{x:W/2+45,y:ly+12,role:'lb',n:52},
-    {x:W/2,y:ly+65,role:'sf',n:31},
-    {x:W/2-25,y:ly+4,role:'dl',n:91},{x:W/2+25,y:ly+4,role:'dl',n:97},
+    {x:W/2-140,y:ly+35,role:'cb',n:21,rs:rCBs[0]?rCBs[0].stats:defStats},
+    {x:W/2+140,y:ly+35,role:'cb',n:24,rs:rCBs[1]?rCBs[1].stats:defStats},
+    {x:W/2-45,y:ly+12,role:'lb',n:55,rs:rLBs[0]?rLBs[0].stats:defStats},
+    {x:W/2+45,y:ly+12,role:'lb',n:52,rs:rLBs[1]?rLBs[1].stats:defStats},
+    {x:W/2,y:ly+65,role:'sf',n:31,rs:rSFs[0]?rSFs[0].stats:defStats},
+    {x:W/2-25,y:ly+4,role:'dl',n:91,rs:rDLs[0]?rDLs[0].stats:defStats},
+    {x:W/2+25,y:ly+4,role:'dl',n:97,rs:rDLs.length>1?rDLs[1].stats:(rDLs[0]?rDLs[0].stats:defStats)},
   ];
-  dp.forEach(d=>P.push({team:'h',role:d.role,x:d.x,y:d.y,sx:d.x,sy:d.y,n:d.n,col:HCOL,hb:false,ar:null,zone:null,aiD:true,bdt:0,px:d.x,py:d.y,anim:0}));
+  dp.forEach(d=>P.push({team:'h',role:d.role,x:d.x,y:d.y,sx:d.x,sy:d.y,n:d.n,col:HCOL,hb:false,ar:null,zone:null,aiD:true,bdt:0,px:d.x,py:d.y,anim:0,rs:d.rs}));
 }
 
 function assignDef(){
@@ -1529,12 +1561,14 @@ function updDBIA(){
     const o=rt(G.clk);wr.x=clamp(wr.sx+o.dx,15,W-15);wr.y=clamp(wr.sy-o.dy,YPX+5,H-YPX-5);
   });
   P.filter(p=>p.team==='h'&&p.aiD).forEach(d=>{
+    const rspd=d.rs?d.rs.spd:55;
+    const spdMul=0.7+rspd/140;
     if(d.role==='sf'&&ball.air){
       const bx=ball.tx-d.x,by=ball.ty-d.y,bd=Math.hypot(bx,by);
-      if(bd>5){d.x+=bx/bd*3.0;d.y+=by/bd*3.0;}
+      if(bd>5){d.x+=bx/bd*3.0*spdMul;d.y+=by/bd*3.0*spdMul;}
     } else if(d.ar){
       const rx=d.ar.x-d.x,ry=d.ar.y-d.y,rd=Math.hypot(rx,ry);
-      if(rd>3){d.x+=rx/rd*2.6;d.y+=ry/rd*2.6;}
+      if(rd>3){d.x+=rx/rd*2.6*spdMul;d.y+=ry/rd*2.6*spdMul;}
     }
     d.x=clamp(d.x,15,W-15);d.y=clamp(d.y,YPX+5,H-YPX-5);
   });
@@ -1547,8 +1581,10 @@ function updDRAC(){
   c.x=clamp(c.x,15,W-15);ball.x=c.x;ball.y=c.y;ball.air=false;
   if(c.y>=H-YPX){mkP(c.x,c.y,'#e74c3c',30);showMsg('THEY SCORED!',2000);endPlay('dTD');return;}
   P.filter(p=>p.team==='h').forEach(d=>{
+    const rspd=d.rs?d.rs.spd:55;
+    const spdMul=0.7+rspd/140;
     const dx=c.x-d.x,dy=c.y-d.y,dd=Math.hypot(dx,dy);
-    if(dd>5){d.x+=dx/dd*2.7;d.y+=dy/dd*2.7;}
+    if(dd>5){d.x+=dx/dd*2.7*spdMul;d.y+=dy/dd*2.7*spdMul;}
     if(dd<TACKLE_R){mkP(c.x,c.y,'#2ecc71',15);endPlay('dTkl');}
   });
 }
@@ -1556,30 +1592,36 @@ function updDRAC(){
 function updPlayerDefAI(){
   const dp=curDP||DPLAYS[0];
   P.filter(p=>p.team==='h'&&p.aiD).forEach(d=>{
+    // Use roster stats for speed scaling (default 55 if no roster player)
+    const rspd=d.rs?d.rs.spd:55;
+    const rstr=d.rs?d.rs.str:55;
+    const spdMul=0.7+rspd/140; // 55→1.09, 80→1.27, 99→1.41
     if(d.role==='dl'){
       const aq=P.find(p=>p.team==='a'&&p.role==='qb');
       const ols=P.filter(p=>p.team==='a'&&p.role==='ol');
       let blocked=false;
       for(const ol of ols){if(Math.hypot(ol.x-d.x,ol.y-d.y)<22){blocked=true;break;}}
       if(blocked)d.bdt=(d.bdt||0)+1;else d.bdt=0;
-      const str=blocked?Math.max(0,1-(d.bdt-gBLOCK_START)/(gBLOCK_FULL-gBLOCK_START)):0;
-      const blitzSpd=dp.blitz>0?2.7:1.9;
+      // Stronger DL breaks blocks faster
+      const blockAdj=gBLOCK_START-(rstr-55)*0.3;
+      const str=blocked?Math.max(0,1-(d.bdt-blockAdj)/(gBLOCK_FULL-blockAdj)):0;
+      const blitzSpd=(dp.blitz>0?2.7:1.9)*spdMul;
       if(!blocked||str<0.3){
         if(aq){const dx=aq.x-d.x,dy=aq.y-d.y,dd=Math.hypot(dx,dy);
           const sp=blitzSpd*(1-str*0.7);if(dd>5){d.x+=dx/dd*sp;d.y+=dy/dd*sp;}}
       } else {d.x+=(Math.random()-0.5)*0.8;d.y+=(Math.random()-0.5)*0.4;}
     } else if(dp.scheme==='man'&&d.ar){
       const rx=d.ar.x-d.x,ry=d.ar.y-d.y,rd=Math.hypot(rx,ry);
-      const sp=2.5*dp.aggr;if(rd>3){d.x+=rx/rd*sp;d.y+=ry/rd*sp;}
+      const sp=2.5*dp.aggr*spdMul;if(rd>3){d.x+=rx/rd*sp;d.y+=ry/rd*sp;}
     } else if(d.zone){
       const zx=d.zone.x-d.x,zy=d.zone.y-d.y,zd=Math.hypot(zx,zy);
-      if(zd>d.zone.r){d.x+=zx/zd*2.0;d.y+=zy/zd*2.0;}
+      if(zd>d.zone.r){d.x+=zx/zd*2.0*spdMul;d.y+=zy/zd*2.0*spdMul;}
       else {
         const nrs=P.filter(p=>p.team==='a'&&p.role==='wr'&&Math.hypot(p.x-d.zone.x,p.y-d.zone.y)<d.zone.r*1.5);
         if(nrs.length>0){let cl=nrs[0],cd=Infinity;
           for(const nr of nrs){const dd=Math.hypot(nr.x-d.x,nr.y-d.y);if(dd<cd){cd=dd;cl=nr;}}
           const rx=cl.x-d.x,ry=cl.y-d.y,rd=Math.hypot(rx,ry);
-          if(rd>5){d.x+=rx/rd*2.2;d.y+=ry/rd*2.2;}}
+          if(rd>5){d.x+=rx/rd*2.2*spdMul;d.y+=ry/rd*2.2*spdMul;}}
       }
     }
     d.x=clamp(d.x,15,W-15);d.y=clamp(d.y,YPX+5,H-YPX-5);
