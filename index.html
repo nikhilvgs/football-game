@@ -929,25 +929,25 @@ const keys={};
 window.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase()))e.preventDefault();});
 window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
 
-// === PERSPECTIVE PROJECTION (SIDELINE 3D CAMERA) ===
+// === PERSPECTIVE PROJECTION (ENDZONE CAMERA) ===
 function project(wx, wy) {
-  const t = clamp(1 - wx / W, 0, 1);
+  const t = clamp((WORLD_BOT - wy) / (WORLD_BOT - WORLD_TOP), 0, 1);
   const pt = Math.pow(t, PERSP_POW);
+  const halfW = NEAR_HALF_W + (FAR_HALF_W - NEAR_HALF_W) * pt;
+  const scale = halfW / NEAR_HALF_W;
+  const relX = (wx - W / 2) / (W / 2);
+  const sx = W / 2 + relX * halfW;
   const sy = GROUND_Y - pt * (GROUND_Y - HORIZON_Y);
-  const scale = Math.max(0.15, 0.2 + (1 - pt) * 0.8);
-  const hScale = 1.6;
-  const shrink = 0.2 + (1 - pt) * 0.8;
-  const sx = W / 2 + (wy - camWY) * hScale * shrink;
   return { x: sx, y: sy, s: scale };
 }
 
 function unproject(sx, sy) {
   const pt = clamp((GROUND_Y - sy) / (GROUND_Y - HORIZON_Y), 0, 1);
   const t = Math.pow(pt, 1 / PERSP_POW);
-  const wx = (1 - t) * W;
-  const shrink = 0.2 + (1 - pt) * 0.8;
-  const hScale = 1.6;
-  const wy = camWY + (sx - W / 2) / (hScale * shrink || 0.01);
+  const halfW = NEAR_HALF_W + (FAR_HALF_W - NEAR_HALF_W) * pt;
+  const relX = halfW > 0 ? (sx - W / 2) / halfW : 0;
+  const wx = W / 2 + relX * (W / 2);
+  const wy = WORLD_BOT - t * (WORLD_BOT - WORLD_TOP);
   return { x: wx, y: wy };
 }
 
@@ -1076,109 +1076,106 @@ function drawField(){
   X.fillStyle=skyG;
   X.fillRect(0,0,W,HORIZON_Y+15);
   drawCrowd();
-  // Draw field as 3D trapezoid strips (left-to-right view)
-  // Visible world Y range based on camera
-  const visRange=250;
-  const wyMin=Math.max(y2y(105),camWY-visRange);
-  const wyMax=Math.min(y2y(-5),camWY+visRange);
-  const STRIPS=30;
-  const stripW=(wyMax-wyMin)/STRIPS;
+  const STRIPS=28;
+  const stripH=(WORLD_BOT-WORLD_TOP)/STRIPS;
   for(let i=0;i<STRIPS;i++){
-    const wyLeft=wyMin+i*stripW;
-    const wyRight=wyMin+(i+1)*stripW;
-    // Project 4 corners: near sideline (wx=W) and far sideline (wx=0)
-    const pNL=project(W,wyLeft),pNR=project(W,wyRight);
-    const pFL=project(0,wyLeft),pFR=project(0,wyRight);
-    // Determine yard line for coloring
-    const wyMid=(wyLeft+wyRight)/2;
-    const ydMid=wy2yd(wyMid);
+    const wyNear=WORLD_BOT-i*stripH;
+    const wyFar=WORLD_BOT-(i+1)*stripH;
+    const pNL=project(0,wyNear),pNR=project(W,wyNear);
+    const pFL=project(0,wyFar),pFR=project(W,wyFar);
+    const ydNear=wy2yd(wyNear),ydFar=wy2yd(wyFar);
     let col;
-    if(ydMid<0) col=EZB;
-    else if(ydMid>100) col=EZA;
-    else {
-      const section=Math.floor(ydMid/5);
-      col=section%2===0?FG1:FG2;
-    }
+    if(ydNear<0||ydFar<0) col=EZB;
+    else if(ydNear>100||ydFar>100) col=EZA;
+    else col=i%2===0?FG1:FG2;
     X.fillStyle=col;
     X.beginPath();
     X.moveTo(pNL.x,pNL.y);X.lineTo(pNR.x,pNR.y);
     X.lineTo(pFR.x,pFR.y);X.lineTo(pFL.x,pFL.y);
     X.closePath();X.fill();
   }
-  // Yard lines (vertical lines connecting near to far sideline)
-  for(let yd=0;yd<=100;yd+=10){
+  const ezTopWY=y2y(95);const pEZT=project(W/2,ezTopWY);
+  const ezFs=Math.max(7,Math.round(18*pEZT.s));
+  X.fillStyle='rgba(255,255,255,0.3)';X.font=`bold ${ezFs}px sans-serif`;X.textAlign='center';
+  X.fillText('E N D Z O N E',pEZT.x,pEZT.y);
+  const ezBotWY=y2y(5);const pEZB=project(W/2,ezBotWY);
+  const ezBFs=Math.max(8,Math.round(18*pEZB.s));
+  X.font=`bold ${ezBFs}px sans-serif`;
+  X.fillText('E N D Z O N E',pEZB.x,pEZB.y);
+  X.strokeStyle='rgba(255,255,255,0.5)';X.lineWidth=2;
+  const slBotL=project(0,WORLD_BOT+10),slBotR=project(W,WORLD_BOT+10);
+  const slTopL=project(0,WORLD_TOP-10),slTopR=project(W,WORLD_TOP-10);
+  X.beginPath();X.moveTo(slBotL.x,slBotL.y);X.lineTo(slTopL.x,slTopL.y);X.stroke();
+  X.beginPath();X.moveTo(slBotR.x,slBotR.y);X.lineTo(slTopR.x,slTopR.y);X.stroke();
+  for(let yd=10;yd<=90;yd+=10){
     const wy=y2y(yd);
-    const pN=project(W,wy),pF=project(0,wy);
-    X.strokeStyle=yd===0||yd===100?'rgba(255,255,255,0.6)':'rgba(255,255,255,0.4)';
-    X.lineWidth=Math.max(0.5,1.5*pN.s);
-    X.beginPath();X.moveTo(pN.x,pN.y);X.lineTo(pF.x,pF.y);X.stroke();
+    const pL=project(40,wy),pR=project(W-40,wy);
+    X.strokeStyle='rgba(255,255,255,0.4)';
+    X.lineWidth=Math.max(0.5,1.5*pL.s);
+    X.beginPath();X.moveTo(pL.x,pL.y);X.lineTo(pR.x,pR.y);X.stroke();
   }
-  // Hash marks at 5-yard intervals
   for(let yd=5;yd<=95;yd+=5){
     if(yd%10===0)continue;
     const wy=y2y(yd);
-    const pN1=project(W*0.85,wy),pN2=project(W*0.95,wy);
-    const pF1=project(W*0.05,wy),pF2=project(W*0.15,wy);
+    const pL1=project(35,wy),pL2=project(50,wy);
+    const pR1=project(W-35,wy),pR2=project(W-50,wy);
     X.strokeStyle='rgba(255,255,255,0.2)';
-    X.lineWidth=Math.max(0.5,1*pN1.s);
-    X.beginPath();X.moveTo(pN1.x,pN1.y);X.lineTo(pN2.x,pN2.y);X.stroke();
-    X.beginPath();X.moveTo(pF1.x,pF1.y);X.lineTo(pF2.x,pF2.y);X.stroke();
+    X.lineWidth=Math.max(0.5,1*pL1.s);
+    X.beginPath();X.moveTo(pL1.x,pL1.y);X.lineTo(pL2.x,pL2.y);X.stroke();
+    X.beginPath();X.moveTo(pR1.x,pR1.y);X.lineTo(pR2.x,pR2.y);X.stroke();
   }
-  // Yard numbers along the near sideline (bottom)
   X.fillStyle='rgba(255,255,255,0.3)';
   for(let yd=10;yd<=90;yd+=10){
     const label=yd<=50?yd:100-yd;
     const wy=y2y(yd);
-    const pN=project(W*0.92,wy);
-    const fs=Math.max(5,Math.round(14*pN.s));
+    const pL=project(22,wy),pR=project(W-22,wy);
+    const fs=Math.max(5,Math.round(14*pL.s));
     X.font=`bold ${fs}px sans-serif`;X.textAlign='center';
-    X.fillText(label,pN.x,pN.y+fs*0.35);
+    X.fillText(label,pL.x,pL.y+fs*0.35);
+    X.fillText(label,pR.x,pR.y+fs*0.35);
   }
-  // Endzone text
-  const ezTopWY=y2y(95);const pEZT=project(W/2,ezTopWY);
-  const ezFs=Math.max(7,Math.round(16*pEZT.s));
-  X.fillStyle='rgba(255,255,255,0.3)';X.font=`bold ${ezFs}px sans-serif`;X.textAlign='center';
-  X.fillText('ENDZONE',pEZT.x,pEZT.y);
-  const ezBotWY=y2y(5);const pEZB=project(W/2,ezBotWY);
-  const ezBFs=Math.max(7,Math.round(16*pEZB.s));
-  X.font=`bold ${ezBFs}px sans-serif`;
-  X.fillText('ENDZONE',pEZB.x,pEZB.y);
-  // LOS line (vertical dashed yellow)
   const losWY=y2y(G.los);
-  const losN=project(W,losWY),losF=project(0,losWY);
-  X.strokeStyle='#f1c40f';X.lineWidth=Math.max(1,2.5*losN.s);X.setLineDash([6,4]);
-  X.beginPath();X.moveTo(losN.x,losN.y);X.lineTo(losF.x,losF.y);X.stroke();X.setLineDash([]);
-  // First down marker (vertical dashed red)
+  const losL=project(0,losWY),losR=project(W,losWY);
+  X.strokeStyle='#f1c40f';X.lineWidth=Math.max(1,2.5*losL.s);X.setLineDash([6,4]);
+  X.beginPath();X.moveTo(losL.x,losL.y);X.lineTo(losR.x,losR.y);X.stroke();X.setLineDash([]);
   const fdv=Math.min(100,G.los+G.ytg);
   if(fdv<=100){
     const fdWY=y2y(fdv);
-    const fdN=project(W,fdWY),fdF=project(0,fdWY);
-    X.strokeStyle='#e74c3c';X.lineWidth=Math.max(1,2.5*fdN.s);X.setLineDash([6,4]);
-    X.beginPath();X.moveTo(fdN.x,fdN.y);X.lineTo(fdF.x,fdF.y);X.stroke();X.setLineDash([]);
+    const fdL=project(0,fdWY),fdR=project(W,fdWY);
+    X.strokeStyle='#e74c3c';X.lineWidth=Math.max(1,2.5*fdL.s);X.setLineDash([6,4]);
+    X.beginPath();X.moveTo(fdL.x,fdL.y);X.lineTo(fdR.x,fdR.y);X.stroke();X.setLineDash([]);
+    const arSz=Math.max(3,7*fdL.s);
+    X.fillStyle='#e74c3c';
+    X.beginPath();X.moveTo(fdL.x+2,fdL.y);X.lineTo(fdL.x+2+arSz*1.3,fdL.y-arSz);X.lineTo(fdL.x+2+arSz*1.3,fdL.y+arSz);X.fill();
+    X.beginPath();X.moveTo(fdR.x-2,fdR.y);X.lineTo(fdR.x-2-arSz*1.3,fdR.y-arSz);X.lineTo(fdR.x-2-arSz*1.3,fdR.y+arSz);X.fill();
   }
-  // Sideline borders
-  X.strokeStyle='rgba(255,255,255,0.5)';X.lineWidth=2;
-  // Near sideline (wx=W) left-to-right
-  const slNL=project(W,wyMin),slNR=project(W,wyMax);
-  X.beginPath();X.moveTo(slNL.x,slNL.y);X.lineTo(slNR.x,slNR.y);X.stroke();
-  // Far sideline (wx=0) left-to-right
-  const slFL=project(0,wyMin),slFR=project(0,wyMax);
-  X.beginPath();X.moveTo(slFL.x,slFL.y);X.lineTo(slFR.x,slFR.y);X.stroke();
 }
 
 function drawCrowd(){
   const colors=['#553322','#442211','#332211','#664433','#443322','#554422','#663344','#225566'];
   const seed=42;
-  // Draw crowd along the top edge (behind far sideline)
-  const crowdY=HORIZON_Y+5;
-  for(let row=0;row<4;row++){
-    for(let j=0;j<60;j++){
-      const sx=j*14+3;
-      const sy=crowdY-row*6-Math.sin(j*0.7+seed)*2;
-      const s=Math.max(2,3-row*0.3);
+  for(let row=0;row<18;row++){
+    const t=row/18;
+    const pt=Math.pow(t,PERSP_POW);
+    const halfW=NEAR_HALF_W+(FAR_HALF_W-NEAR_HALF_W)*pt;
+    const sy=GROUND_Y-pt*(GROUND_Y-HORIZON_Y);
+    const cx=W/2;
+    const leftEdge=cx-halfW;
+    const rightEdge=cx+halfW;
+    const s=Math.max(2,5*(1-pt));
+    for(let j=0;j<6;j++){
+      const x=leftEdge-8-j*s*1.3;
+      if(x<0)continue;
       const ci=(row*7+j*13+seed)%colors.length;
       X.fillStyle=colors[ci];
-      X.fillRect(sx-s/2,sy-s/2,s,s*0.8);
+      X.fillRect(x-s/2,sy-s/2,s,s*0.8);
+    }
+    for(let j=0;j<6;j++){
+      const x=rightEdge+8+j*s*1.3;
+      if(x>W)continue;
+      const ci=(row*11+j*7+seed)%colors.length;
+      X.fillStyle=colors[ci];
+      X.fillRect(x-s/2,sy-s/2,s,s*0.8);
     }
   }
 }
@@ -1300,8 +1297,8 @@ function updLive(){
   const qb=P.find(p=>p.team==='h'&&p.role==='qb');
   if(qb&&qb.hb){
     let dx=0,dy=0;
-    if(keys['arrowleft']||keys['a'])dy-=1;if(keys['arrowright']||keys['d'])dy+=1;
-    if(keys['arrowup']||keys['w'])dx-=1;if(keys['arrowdown']||keys['s'])dx+=1;
+    if(keys['arrowleft']||keys['a'])dx-=1;if(keys['arrowright']||keys['d'])dx+=1;
+    if(keys['arrowup']||keys['w'])dy-=1;if(keys['arrowdown']||keys['s'])dy+=1;
     if(dx&&dy){dx*=0.707;dy*=0.707;}
     qb.x+=dx*gQB_SPD;qb.y+=dy*gQB_SPD;
     qb.x=clamp(qb.x,20,W-20);qb.y=clamp(qb.y,YPX,H-YPX);
@@ -1370,8 +1367,8 @@ function resolveCatch(offT,defT){
 function updRAC(){
   G.clk++;const c=G.carrier;if(!c)return;
   let dx=0,dy=0;
-  if(keys['arrowleft']||keys['a'])dy-=1;if(keys['arrowright']||keys['d'])dy+=1;
-  if(keys['arrowup']||keys['w'])dx-=1;if(keys['arrowdown']||keys['s'])dx+=1;
+  if(keys['arrowleft']||keys['a'])dx-=1;if(keys['arrowright']||keys['d'])dx+=1;
+  if(keys['arrowup']||keys['w'])dy-=1;if(keys['arrowdown']||keys['s'])dy+=1;
   if(dx&&dy){dx*=0.707;dy*=0.707;}
   G.sprint=keys[' ']&&G.stam>0;
   if(G.sprint)G.stam=Math.max(0,G.stam-STAM_DRAIN);else G.stam=Math.min(gSTAM_MAX,G.stam+STAM_REGEN);
@@ -1407,8 +1404,8 @@ function updRun(){
   }
   const c=G.carrier;if(!c)return;
   let dx=0,dy=0;
-  if(keys['arrowleft']||keys['a'])dy-=1;if(keys['arrowright']||keys['d'])dy+=1;
-  if(keys['arrowup']||keys['w'])dx-=1;if(keys['arrowdown']||keys['s'])dx+=1;
+  if(keys['arrowleft']||keys['a'])dx-=1;if(keys['arrowright']||keys['d'])dx+=1;
+  if(keys['arrowup']||keys['w'])dy-=1;if(keys['arrowdown']||keys['s'])dy+=1;
   if(dx&&dy){dx*=0.707;dy*=0.707;}
   G.sprint=keys[' ']&&G.stam>0;
   if(G.sprint)G.stam=Math.max(0,G.stam-STAM_DRAIN);else G.stam=Math.min(gSTAM_MAX,G.stam+STAM_REGEN);
@@ -1749,7 +1746,7 @@ function drawHuman(pp,p){
   }
 }
 function drawP(){
-  const sorted=[...P].sort((a,b)=>a.x-b.x);
+  const sorted=[...P].sort((a,b)=>a.y-b.y);
   for(const p of sorted){
     const pp=project(p.x,p.y);
     // WR highlight ring (under the player)
@@ -1907,10 +1904,6 @@ function updSB(){
 let inGame=false;
 function update(){
   if(!inGame)return;
-  if(camWY===null||isNaN(camWY))camWY=ball.y||300;
-  const camTarget=ball.y||camWY;
-  camWY+=(camTarget-camWY)*0.08;
-  camWY=clamp(camWY,WORLD_TOP+60,WORLD_BOT-60);
   if(G.throwAnim>0){G.throwAnim--;if(G.throwAnim===6&&G.throwPending){executeThrow(G.throwPending.qb,G.throwPending.ddx,G.throwPending.ddy,G.throwPending.power);G.throwPending=null;}}
   if(G.catchAnim>0)G.catchAnim--;
   switch(G.ph){
