@@ -101,6 +101,23 @@ canvas{display:block;border-radius:6px;box-shadow:0 0 30px rgba(0,0,0,0.6);}
 .inst{color:#888;font-size:12px;margin-top:10px;text-align:center;line-height:1.5;}
 .secondary{color:#aaa;font-size:12px;}
 .gold{color:#f0c040;}
+/* Touch Controls */
+#touchControls{display:none;position:absolute;bottom:0;left:0;width:100%;height:160px;
+  pointer-events:none;z-index:8;}
+#touchControls.show{display:flex;justify-content:space-between;align-items:flex-end;padding:10px 14px;}
+#dpad{pointer-events:auto;display:grid;grid-template-columns:50px 50px 50px;grid-template-rows:50px 50px;
+  gap:2px;opacity:0.55;}
+#dpad .dp{background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.4);border-radius:8px;
+  color:#fff;font-size:22px;font-weight:bold;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:none;}
+#dpad .dp:active,#dpad .dp.pressed{background:rgba(255,255,255,0.5);}
+#dpad .dp.blank{background:transparent;border:none;pointer-events:none;}
+#actBtns{pointer-events:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end;opacity:0.55;}
+#actBtns .ab{background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.4);border-radius:8px;
+  color:#fff;font-size:11px;font-weight:bold;padding:10px 14px;min-width:52px;text-align:center;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:none;}
+#actBtns .ab:active,#actBtns .ab.pressed{background:rgba(255,255,255,0.5);}
+#actBtns .juke-row{display:flex;gap:6px;}
 </style>
 </head>
 <body>
@@ -155,6 +172,27 @@ canvas{display:block;border-radius:6px;box-shadow:0 0 30px rgba(0,0,0,0.6);}
   <div id="postGameScreen" class="screen">
     <div class="screen-header">GAME OVER</div>
     <div class="screen-content" id="postGameContent"></div>
+  </div>
+  <!-- Touch Controls for iPad/Mobile -->
+  <div id="touchControls">
+    <div id="dpad">
+      <div class="dp blank"></div>
+      <div class="dp" data-key="arrowup">▲</div>
+      <div class="dp blank"></div>
+      <div class="dp" data-key="arrowleft">◀</div>
+      <div class="dp blank"></div>
+      <div class="dp" data-key="arrowright">▶</div>
+      <div class="dp blank"></div>
+      <div class="dp" data-key="arrowdown">▼</div>
+      <div class="dp blank"></div>
+    </div>
+    <div id="actBtns">
+      <div class="ab" data-key=" ">SPRINT</div>
+      <div class="juke-row">
+        <div class="ab" data-key="q">⟵ JUKE</div>
+        <div class="ab" data-key="e">JUKE ⟶</div>
+      </div>
+    </div>
   </div>
 </div>
 <script>
@@ -369,6 +407,7 @@ function showScreen(id){
   if(id!=='game'){
     const el=document.getElementById(id+'Screen');
     if(el)el.style.display='flex';
+    showTouchControls(false);
   }
 }
 
@@ -950,6 +989,23 @@ let G={},P=[],ball={},parts=[],curOP=null,curDP=null;
 const keys={};
 window.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase()))e.preventDefault();});
 window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+
+// === TOUCH CONTROLS (iPad/Mobile) ===
+const isTouchDevice='ontouchstart' in window||navigator.maxTouchPoints>0;
+function initTouchControls(){
+  if(!isTouchDevice)return;
+  document.querySelectorAll('#dpad .dp[data-key], #actBtns .ab[data-key]').forEach(btn=>{
+    const k=btn.getAttribute('data-key');
+    btn.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();keys[k]=true;btn.classList.add('pressed');},{passive:false});
+    btn.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();keys[k]=false;btn.classList.remove('pressed');},{passive:false});
+    btn.addEventListener('touchcancel',e=>{keys[k]=false;btn.classList.remove('pressed');});
+  });
+}
+function showTouchControls(show){
+  const el=document.getElementById('touchControls');
+  if(!el||!isTouchDevice)return;
+  if(show)el.classList.add('show');else el.classList.remove('show');
+}
 
 // === PERSPECTIVE PROJECTION (ENDZONE CAMERA) ===
 function project(wx, wy) {
@@ -1948,6 +2004,8 @@ function updSB(){
 let inGame=false;
 function update(){
   if(!inGame)return;
+  // Show touch controls only during player-controlled phases
+  showTouchControls(['live','rac','run'].includes(G.ph));
   if(G.throwAnim>0){G.throwAnim--;if(G.throwAnim===6&&G.throwPending){executeThrow(G.throwPending.qb,G.throwPending.ddx,G.throwPending.ddy,G.throwPending.power);G.throwPending=null;}}
   if(G.catchAnim>0)G.catchAnim--;
   switch(G.ph){
@@ -1988,6 +2046,7 @@ function startApp(){
     showScreen('teamSelect');renderTeamSelect();
   }
   initGame();
+  initTouchControls();
   loop();
 }
 startApp();
