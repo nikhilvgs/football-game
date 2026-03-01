@@ -363,7 +363,7 @@ function setGameConstants(){
   gBALL_SPD=9+(qb?qb.stats.arm:50)/25;
   gCARRIER_SPD=2.0+(rb?rb.stats.spd:50)/50;
   gSPRINT_SPD=3.0+(rb?rb.stats.spd:50)/40;
-  gCATCH_R=20+avgCat/8;
+  gCATCH_R=30+avgCat/5;
   gBLOCK_START=40+avgStr/4;
   gBLOCK_FULL=100+avgStr/2;
   gQB_SPD=1.5+(qb?qb.stats.spd:50)/60;
@@ -1319,7 +1319,9 @@ function updLive(){
 }
 
 function updBIA(){
-  G.clk++;ball.t++;
+  G.clk++;
+  if(!ball.air)return;
+  ball.t++;
   const pr=Math.min(1,ball.t/ball.tt);
   ball.x=ball.sx+(ball.tx-ball.sx)*pr;ball.y=ball.sy+(ball.ty-ball.sy)*pr;
   ball.ao=-ball.arc*4*pr*(1-pr);
