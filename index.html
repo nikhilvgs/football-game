@@ -378,7 +378,7 @@ function saveGame(){
 }
 function loadGame(){
   const d=localStorage.getItem('retroBowlSave');
-  if(d){S=JSON.parse(d);if(!S.freeAgents)S.freeAgents=[];return true;}
+  if(d){S=JSON.parse(d);if(!S.freeAgents)S.freeAgents=[];if(S.tutorialDone===undefined)S.tutorialDone=false;return true;}
   return false;
 }
 
@@ -492,7 +492,10 @@ function renderHome(){
   h+='<button class="btn" onclick="showScreen(\'facilities\');renderFacilities();">FACILITIES</button>';
   h+='<button class="btn btn-blue" onclick="showScreen(\'freeAgent\');renderFreeAgents();">FREE AGENTS</button>';
   h+='</div>';
-  h+='<div style="text-align:center;margin-top:10px"><button class="btn btn-red" style="font-size:11px;padding:6px 14px" onclick="if(confirm(\'Start a new game? Current save will be lost.\')){localStorage.removeItem(\'retroBowlSave\');location.reload();}">NEW GAME</button></div>';
+  h+='<div style="text-align:center;margin-top:10px">';
+  h+='<button class="btn" style="font-size:12px;padding:8px 18px;background:#8e44ad;border-color:#9b59b6" onclick="startTutorial()">TUTORIAL</button> ';
+  h+='<button class="btn btn-red" style="font-size:11px;padding:6px 14px" onclick="if(confirm(\'Start a new game? Current save will be lost.\')){localStorage.removeItem(\'retroBowlSave\');location.reload();}">NEW GAME</button>';
+  h+='</div>';
   el.innerHTML=h;
 }
 
@@ -854,6 +857,11 @@ function onGameOver(hs,as){
 function renderPostGame(won,hs,as,earned,injuries){
   const el=document.getElementById('postGameContent');
   const t=TEAMS[S.teamIdx];
+  let oppAbbr='CPU';
+  if(!S.isPlayoffs&&S.week<=14&&S.schedule.length>0&&S.week>=2){
+    oppAbbr=TEAMS[S.schedule[S.week-2].oppIdx].abbr;
+  }
+  const gs=G.stats;
   let h='<div style="text-align:center;padding:20px">';
   h+=`<div class="pg-score" style="color:${won?'#2ecc71':'#e74c3c'}">${hs} - ${as}</div>`;
   h+=`<div class="pg-result" style="color:${won?'#2ecc71':'#e74c3c'}">${won?'VICTORY!':'DEFEAT'}</div>`;
@@ -862,11 +870,25 @@ function renderPostGame(won,hs,as,earned,injuries){
   if(injuries.length>0){
     h+=`<div style="color:#e74c3c;margin:8px 0;font-size:13px">Injuries: ${injuries.join(', ')}</div>`;
   }
-  // Check special states
-  if(S.isPlayoffs&&S.playoffRound>=3){
-    // Just won championship (already incremented)
-    // Actually this case is handled above - if playoffRound>=3 we set isPlayoffs=false
-  }
+  // Stats table
+  h+=`<div style="margin:16px auto;max-width:340px;text-align:center">`;
+  h+=`<div style="font-size:14px;font-weight:bold;color:#f0c040;margin-bottom:8px;letter-spacing:1px">GAME STATS</div>`;
+  h+=`<table style="width:100%;font-size:12px;border-collapse:collapse">`;
+  h+=`<tr style="color:#888"><td style="width:30%;text-align:right;padding:3px 6px">${t.abbr}</td><td style="width:40%;text-align:center;padding:3px;color:#f0c040"></td><td style="width:30%;text-align:left;padding:3px 6px">${oppAbbr}</td></tr>`;
+  const sr=[
+    [gs.h.comp+'/'+gs.h.att,'Passing',gs.a.comp+'/'+gs.a.att],
+    [gs.h.passYds,'Pass Yards',gs.a.passYds],
+    [gs.h.rushYds,'Rush Yards',gs.a.rushYds],
+    [gs.h.passTD+gs.h.rushTD,'Touchdowns',gs.a.passTD+gs.a.rushTD],
+    [gs.h.int,'Interceptions',gs.a.int],
+    [gs.h.sacks,'Sacks Taken',gs.a.sacks],
+  ];
+  sr.forEach(([l,label,r])=>{
+    h+=`<tr><td style="text-align:right;padding:3px 6px;font-weight:bold">${l}</td>`;
+    h+=`<td style="text-align:center;padding:3px;color:#aaa;font-size:11px">${label}</td>`;
+    h+=`<td style="text-align:left;padding:3px 6px;font-weight:bold">${r}</td></tr>`;
+  });
+  h+=`</table></div>`;
   if(!S.isPlayoffs&&S.playoffRound>=3){
     h+=`<div style="font-size:24px;color:#f0c040;margin:10px 0;font-weight:bold">CHAMPION!</div>`;
     h+=`<div class="secondary">You won the championship!</div>`;
@@ -911,8 +933,7 @@ let currentOppDiff=3;
 
 function resetForManagement(){
   initGame();
-  G.ph='pp';G.pos='h';
-  showPM();
+  startMatchup();
 }
 
 // =============================================
@@ -932,6 +953,10 @@ const JUKE_CD = 18, JUKE_DIST = 32;
 const MAX_POWER = 320, MIN_POWER = 35;
 const PPQ = 5;
 const INT_R = 20;
+const SECS_PER_Q = 180; // 3 minutes per quarter (scaled game time)
+const PLAY_CLOCK = 25;  // seconds per play clock
+const CLOCK_TICK_FRAMES = 8; // game-seconds tick every N real frames (~5 game-sec per real sec at 60fps)
+let clockTickCounter = 0;
 
 // === PERSPECTIVE CONSTANTS ===
 const HORIZON_Y = 75;
@@ -987,7 +1012,15 @@ const AI_PLAYS = [
 // === STATE ===
 let G={},P=[],ball={},parts=[],curOP=null,curDP=null;
 const keys={};
-window.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase()))e.preventDefault();});
+window.addEventListener('keydown',e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase()))e.preventDefault();
+  if(e.key===' '&&G.ph==='kick')kickConfirm();
+  if(G.ph==='tut'){
+    if(e.key===' ')tutAdvance();
+    if(e.key.toLowerCase()==='b')tutBack();
+  }
+});
 window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
 
 // === TOUCH CONTROLS (iPad/Mobile) ===
@@ -1036,10 +1069,14 @@ function wy2yd(wy) {
 // Mouse
 let drag={active:false,sx:0,sy:0,cx:0,cy:0};
 C.addEventListener('mousedown',e=>{
-  if(G.ph!=='live'||!curOP||curOP.type==='run')return;
   const r=C.getBoundingClientRect();
-  drag.sx=(e.clientX-r.left)*(W/r.width);drag.sy=(e.clientY-r.top)*(H/r.height);
-  drag.cx=drag.sx;drag.cy=drag.sy;drag.active=true;
+  const sx=(e.clientX-r.left)*(W/r.width),sy=(e.clientY-r.top)*(H/r.height);
+  if(G.ph==='tut'){tutAdvance();return;}
+  if(G.ph==='cointoss'){coinTossClick(sx,sy);return;}
+  if(G.ph==='matchup'){startCoinToss();return;}
+  if(G.ph==='kick'){kickConfirm();return;}
+  if(G.ph!=='live'||!curOP||curOP.type==='run')return;
+  drag.sx=sx;drag.sy=sy;drag.cx=drag.sx;drag.cy=drag.sy;drag.active=true;
 });
 C.addEventListener('mousemove',e=>{
   if(!drag.active)return;
@@ -1067,10 +1104,14 @@ C.addEventListener('mouseup',e=>{
 });
 // Touch
 C.addEventListener('touchstart',e=>{e.preventDefault();
-  if(G.ph!=='live'||!curOP||curOP.type==='run')return;
   const t=e.touches[0],r=C.getBoundingClientRect();
-  drag.sx=(t.clientX-r.left)*(W/r.width);drag.sy=(t.clientY-r.top)*(H/r.height);
-  drag.cx=drag.sx;drag.cy=drag.sy;drag.active=true;
+  const sx=(t.clientX-r.left)*(W/r.width),sy=(t.clientY-r.top)*(H/r.height);
+  if(G.ph==='tut'){tutAdvance();return;}
+  if(G.ph==='cointoss'){coinTossClick(sx,sy);return;}
+  if(G.ph==='matchup'){startCoinToss();return;}
+  if(G.ph==='kick'){kickConfirm();return;}
+  if(G.ph!=='live'||!curOP||curOP.type==='run')return;
+  drag.sx=sx;drag.sy=sy;drag.cx=drag.sx;drag.cy=drag.sy;drag.active=true;
 },{passive:false});
 C.addEventListener('touchmove',e=>{e.preventDefault();
   if(!drag.active)return;const t=e.touches[0],r=C.getBoundingClientRect();
@@ -1121,6 +1162,7 @@ function doThrow(qb,ddx,ddy,power){
   G.throwAnim=12;G.throwPlayer=qb;
   G.throwPending={qb,ddx,ddy,power};
   G.ph='bia';
+  G.stats.h.att++;
 }
 
 // === INIT ===
@@ -1137,7 +1179,30 @@ function initGame(){
      stam:gSTAM_MAX,sprint:false,jcd:0,aiTF:0,
      throwAnim:0,throwPlayer:null,throwPending:null,
      catchAnim:0,catchPlayer:null,
-     tackleAnim:0,tackleRunner:null,tackleDef:null,pendingEndPlay:''};
+     tackleAnim:0,tackleRunner:null,tackleDef:null,pendingEndPlay:'',
+     // Game clock
+     gameClock:SECS_PER_Q,playClock:PLAY_CLOCK,timeoutsH:3,timeoutsA:3,
+     clockStopped:true,twoMinWarning:false,receiveFirst:'h',
+     xpTeam:null,
+     // Kick/punt
+     kickType:null,kickPower:0,kickDir:1,kickSpeed:1.8,kickPhase:0,
+     kickAccuracy:50,kickGood:false,kickResultTimer:0,kickDist:0,
+     puntAnim:0,puntLandYd:0,
+     // Fumble
+     fumbleBall:null,fumbleTimer:0,fumbleOffTeam:null,
+     // Coin toss
+     coinAnim:0,coinChoice:null,coinResult:null,
+     // Matchup
+     matchupTimer:0,
+     // Halftime
+     halftimeTimer:0,
+     // Tutorial
+     tutStep:0,tutWait:0,tutDone:false,
+     // Stats
+     stats:{
+       h:{passYds:0,rushYds:0,passTD:0,rushTD:0,int:0,sacks:0,comp:0,att:0},
+       a:{passYds:0,rushYds:0,passTD:0,rushTD:0,int:0,sacks:0,comp:0,att:0}
+     }};
   updSB();
 }
 
@@ -1262,31 +1327,73 @@ function drawCrowd(){
 function showPM(){
   pm.innerHTML='';const t=document.createElement('h3');
   if(G.pos==='h'){
-    t.textContent='OFFENSE';pm.appendChild(t);
-    OPLAYS.forEach((p,i)=>{const b=document.createElement('button');
-      b.textContent=p.name;b.style.background=p.color;
-      b.addEventListener('click',()=>selOff(i));pm.appendChild(b);});
+    // 4th down special options
+    if(G.dn===4){
+      t.textContent='4TH DOWN';pm.appendChild(t);
+      // Field goal option (if in range, ~40+ yard line)
+      if(G.los>=30){
+        const fgDist=100-G.los+17;
+        const b=document.createElement('button');b.textContent=`FIELD GOAL (${fgDist} yds)`;
+        b.style.background='#8e44ad';
+        b.addEventListener('click',()=>{pm.classList.remove('show');startKick('fg');});pm.appendChild(b);
+      }
+      // Punt option
+      const pb=document.createElement('button');pb.textContent='PUNT';
+      pb.style.background='#2c3e50';
+      pb.addEventListener('click',()=>{pm.classList.remove('show');startPunt();});pm.appendChild(pb);
+      // Go for it
+      const gb=document.createElement('button');gb.textContent='GO FOR IT';
+      gb.style.background='#c0392b';
+      gb.addEventListener('click',()=>{showPMPlays();});pm.appendChild(gb);
+    } else {
+      t.textContent='OFFENSE';pm.appendChild(t);
+      showPMPlaysInner(pm);
+    }
+    // Timeout button
+    if(G.timeoutsH>0){
+      const tb=document.createElement('button');tb.textContent=`TIMEOUT (${G.timeoutsH})`;
+      tb.style.background='#555';tb.style.fontSize='11px';tb.style.padding='5px 10px';
+      tb.addEventListener('click',()=>{G.timeoutsH--;G.clockStopped=true;showMsg('TIMEOUT',1000);});
+      pm.appendChild(tb);
+    }
   } else {
     t.textContent='DEFENSE';pm.appendChild(t);
     DPLAYS.forEach((p,i)=>{const b=document.createElement('button');
       b.textContent=p.name;b.style.background=p.color;
       b.addEventListener('click',()=>selDef(i));pm.appendChild(b);});
+    if(G.timeoutsH>0){
+      const tb=document.createElement('button');tb.textContent=`TIMEOUT (${G.timeoutsH})`;
+      tb.style.background='#555';tb.style.fontSize='11px';tb.style.padding='5px 10px';
+      tb.addEventListener('click',()=>{G.timeoutsH--;G.clockStopped=true;showMsg('TIMEOUT',1000);});
+      pm.appendChild(tb);
+    }
   }
   pm.classList.add('show');G.ph='pp';
+}
+function showPMPlays(){
+  pm.innerHTML='';const t=document.createElement('h3');
+  t.textContent='OFFENSE';pm.appendChild(t);
+  showPMPlaysInner(pm);
+  pm.classList.add('show');
+}
+function showPMPlaysInner(el){
+  OPLAYS.forEach((p,i)=>{const b=document.createElement('button');
+    b.textContent=p.name;b.style.background=p.color;
+    b.addEventListener('click',()=>selOff(i));el.appendChild(b);});
 }
 
 function selOff(i){
   curOP=OPLAYS[i];curDP=DPLAYS[Math.floor(Math.random()*DPLAYS.length)];
   pm.classList.remove('show');
   setupOff();setupAIDef();assignDef();
-  G.ph='pre';G.clk=0;
+  G.ph='pre';G.clk=0;G.clockStopped=false;
   ball={x:W/2,y:y2y(G.los),air:false,sx:0,sy:0,tx:0,ty:0,tt:0,t:0,arc:0};
   showDefenseRoll(curDP,()=>{if(G.ph==='pre'){G.ph=curOP.type==='run'?'run':curOP.type==='scramble'?'run':'live';G.clk=0;}});
 }
 function selDef(i){
   curDP=DPLAYS[i];pm.classList.remove('show');
   setupAIOff();setupPlayerDef();assignPlayerDef();
-  G.ph='pre';G.clk=0;G.aiTF=50+Math.floor(Math.random()*25);
+  G.ph='pre';G.clk=0;G.aiTF=50+Math.floor(Math.random()*25);G.clockStopped=false;
   ball={x:W/2,y:y2y(G.los),air:false,sx:0,sy:0,tx:0,ty:0,tt:0,t:0,arc:0};
   showDefenseConfirm(curDP,()=>{if(G.ph==='pre'){G.ph='dl';G.clk=0;}});
 }
@@ -1439,10 +1546,12 @@ function resolveCatch(offT,defT){
     if(dd<INT_R){
       const ic=dtgt>gCATCH_R?0.75:dd<dtgt?0.35:0.12;
       if(Math.random()<ic){mkP(ball.tx,ball.ty,'#e74c3c',20);showMsg('INTERCEPTED!');
+        G.stats[offT].int++;
         endPlay(offT==='h'?'int':'dInt');return;}
     }
   }
   if(tgt&&dtgt<gCATCH_R){
+    G.stats[offT].comp++;
     tgt.caught=true;tgt.hb=true;ball.air=false;
     G.carrier=tgt;G.stam=gSTAM_MAX;G.jcd=0;
     G.catchAnim=10;G.catchPlayer=tgt;
@@ -1450,6 +1559,7 @@ function resolveCatch(offT,defT){
     G.ph=offT==='h'?'rac':'drac';
   } else {
     ball.air=false;mkP(ball.tx,ball.ty,'#95a5a6',10);showMsg('INCOMPLETE');
+    G.clockStopped=true;
     endPlay(offT==='h'?'inc':'dInc');
   }
 }
@@ -1475,7 +1585,7 @@ function updRAC(){
     const ddx=c.x-d.x,ddy=c.y-d.y,dd=Math.hypot(ddx,ddy);
     const cs=d.role==='dl'?2.2:d.role==='lb'?2.7:2.9;
     if(dd>5){d.x+=ddx/dd*cs;d.y+=ddy/dd*cs;}
-    if(dd<TACKLE_R){mkP(c.x,c.y,'#e74c3c',15);G.tackleAnim=20;G.tackleRunner=c;G.tackleDef=d;G.pendingEndPlay='tkl';G.ph='tackle';}
+    if(dd<TACKLE_R){if(!checkFumble(c,'h')){mkP(c.x,c.y,'#e74c3c',15);G.tackleAnim=20;G.tackleRunner=c;G.tackleDef=d;G.pendingEndPlay='tkl';G.ph='tackle';}return;}
   });
   if(G.sprint&&Math.random()<0.3)parts.push({x:c.x,y:c.y+8,vx:(Math.random()-0.5),vy:Math.random()*2,l:0.4,d:0.05,s:3,c:'rgba(255,255,255,0.3)'});
 }
@@ -1512,7 +1622,7 @@ function updRun(){
     const ddx=c.x-d.x,ddy=c.y-d.y,dd=Math.hypot(ddx,ddy);
     const cs=d.role==='dl'?2.2:d.role==='lb'?2.7:2.9;
     if(dd>5){d.x+=ddx/dd*cs;d.y+=ddy/dd*cs;}
-    if(dd<TACKLE_R){mkP(c.x,c.y,'#e74c3c',15);G.tackleAnim=20;G.tackleRunner=c;G.tackleDef=d;G.pendingEndPlay='tkl';G.ph='tackle';}
+    if(dd<TACKLE_R){if(!checkFumble(c,'h')){mkP(c.x,c.y,'#e74c3c',15);G.tackleAnim=20;G.tackleRunner=c;G.tackleDef=d;G.pendingEndPlay='tkl';G.ph='tackle';}return;}
   });
   if(c.y<=YPX){mkP(c.x,c.y,'#f1c40f',30);showMsg('TOUCHDOWN!',2000);endPlay('td');return;}
   if(G.sprint&&Math.random()<0.3)parts.push({x:c.x,y:c.y+8,vx:(Math.random()-0.5),vy:Math.random()*2,l:0.4,d:0.05,s:3,c:'rgba(255,255,255,0.3)'});
@@ -1605,6 +1715,7 @@ function aiThrow(aq){
   const fd=Math.hypot(ball.tx-aq.x,ball.ty-aq.y);
   ball.tt=Math.max(12,fd/8);ball.arc=fd*0.1;
   G.ph='dbia';
+  G.stats.a.att++;
 }
 
 function updDBIA(){
@@ -1641,7 +1752,7 @@ function updDRAC(){
     const spdMul=0.7+rspd/140;
     const dx=c.x-d.x,dy=c.y-d.y,dd=Math.hypot(dx,dy);
     if(dd>5){d.x+=dx/dd*2.7*spdMul;d.y+=dy/dd*2.7*spdMul;}
-    if(dd<TACKLE_R){mkP(c.x,c.y,'#2ecc71',15);endPlay('dTkl');}
+    if(dd<TACKLE_R){if(!checkFumble(c,'a')){mkP(c.x,c.y,'#2ecc71',15);endPlay('dTkl');}return;}
   });
 }
 
@@ -1687,36 +1798,52 @@ function updPlayerDefAI(){
 // === END PLAY ===
 function endPlay(r){
   G.pr=r;G.ppq++;
+  // Stop clock on TDs, turnovers, incompletions
+  if(['td','int','dTD','dInt','inc','dInc'].includes(r))G.clockStopped=true;
   if(G.pos==='h'){
+    const isPass=curOP&&curOP.type==='pass';
     switch(r){
-      case 'td':G.hs+=7;G.ph='pd';G.st=70;break;
+      case 'td':{
+        const tdYds=100-G.los;
+        if(isPass){G.stats.h.passTD++;G.stats.h.passYds+=tdYds;}
+        else{G.stats.h.rushTD++;G.stats.h.rushYds+=tdYds;}
+        G.hs+=6;G.clockStopped=true;
+        G.ph='xp';G.xpTeam='h';G.st=0;break;}
       case 'tkl':{
         const c=G.carrier;
         if(c){const yg=Math.max(0,Math.round((y2y(G.los)-c.y)/(H/100)));
+          if(isPass)G.stats.h.passYds+=yg;else G.stats.h.rushYds+=yg;
           G.los=Math.min(99,G.los+yg);G.ytg-=yg;
           if(G.ytg<=0){G.dn=1;G.ytg=10;showMsg(`1ST DOWN! +${yg} yds`);}
           else {G.dn++;showMsg(yg>0?`TACKLED +${yg} yds`:'NO GAIN');}
         } else G.dn++;
         if(G.dn>4){showMsg('TURNOVER ON DOWNS');G.ph='pd';G.st=70;}
         else {G.ph='pd';G.st=50;}break;}
-      case 'sack':G.los=Math.max(1,G.los-7);G.dn++;showMsg('SACKED! -7 yds');
+      case 'sack':G.stats.h.sacks++;G.los=Math.max(1,G.los-7);G.dn++;showMsg('SACKED! -7 yds');
         G.ph='pd';G.st=G.dn>4?70:50;if(G.dn>4)showMsg('TURNOVER ON DOWNS');break;
       case 'inc':G.dn++;G.ph='pd';G.st=G.dn>4?70:50;if(G.dn>4)showMsg('TURNOVER ON DOWNS');break;
       case 'int':G.ph='pd';G.st=70;break;
     }
   } else {
+    const cpuIsPass=G.carrier&&G.carrier.role==='wr';
     switch(r){
-      case 'dTD':G.as+=7;G.ph='pd';G.st=70;break;
+      case 'dTD':{
+        const tdYds=G.los;
+        if(cpuIsPass){G.stats.a.passTD++;G.stats.a.passYds+=tdYds;}
+        else{G.stats.a.rushTD++;G.stats.a.rushYds+=tdYds;}
+        G.as+=6;G.clockStopped=true;
+        G.ph='xp';G.xpTeam='a';G.st=0;break;}
       case 'dTkl':{
         const c=G.carrier;
         if(c){const yg=Math.max(0,Math.round((c.y-y2y(G.los))/(H/100)));
+          if(cpuIsPass)G.stats.a.passYds+=yg;else G.stats.a.rushYds+=yg;
           G.los=Math.max(1,G.los-yg);G.ytg-=yg;
           if(G.ytg<=0){G.dn=1;G.ytg=10;showMsg('FIRST DOWN (CPU)');}
           else G.dn++;
         } else G.dn++;
         if(G.dn>4){showMsg('TURNOVER ON DOWNS!');G.ph='pd';G.st=70;}
         else {G.ph='pd';G.st=50;}break;}
-      case 'dSack':G.los=Math.min(99,G.los+7);G.dn++;
+      case 'dSack':G.stats.a.sacks++;G.los=Math.min(99,G.los+7);G.dn++;
         G.ph='pd';G.st=G.dn>4?70:50;if(G.dn>4)showMsg('TURNOVER ON DOWNS!');break;
       case 'dInc':G.dn++;G.ph='pd';G.st=G.dn>4?70:50;if(G.dn>4)showMsg('TURNOVER ON DOWNS!');break;
       case 'dInt':G.ph='pd';G.st=70;break;
@@ -1726,14 +1853,436 @@ function endPlay(r){
 }
 
 function advance(){
-  if(G.ppq>=PPQ){G.q++;G.ppq=0;
+  // Check if quarter is over (clock-based)
+  if(G.gameClock<=0){
+    G.q++;
+    if(G.q===3){
+      // Halftime
+      G.ph='halftime';G.halftimeTimer=180;
+      G.gameClock=SECS_PER_Q;G.playClock=PLAY_CLOCK;
+      G.timeoutsH=3;G.timeoutsA=3;G.twoMinWarning=false;
+      return;
+    }
     if(G.q>G.mq){G.ph='go';
       onGameOver(G.hs,G.as);
       return;}
-    showMsg(`QUARTER ${G.q}`,1500);}
-  const sw=['td','int','dTD','dInt'].includes(G.pr)||(G.dn>4);
+    G.gameClock=SECS_PER_Q;G.twoMinWarning=false;
+    showMsg(`QUARTER ${G.q}`,1500);
+  }
+  const sw=['td','int','dTD','dInt','fg','punt'].includes(G.pr)||(G.dn>4);
   if(sw){G.pos=G.pos==='h'?'a':'h';G.dn=1;G.ytg=10;G.los=25;}
+  // CPU 4th down decisions (when CPU is on offense)
+  if(G.pos==='a'&&G.dn===4){
+    if(cpuFourthDown())return;
+  }
+  G.playClock=PLAY_CLOCK;G.clockStopped=true;
   updSB();showPM();
+}
+
+// === TUTORIAL ===
+const TUT_STEPS=[
+  {title:'WELCOME',text:'Welcome to Retro Bowl!\nThis tutorial will teach you the basics.\n\nTap or press SPACE to continue.'},
+  {title:'PLAY SELECTION',text:'Before each play, choose an offensive\nor defensive play from the menu.\n\nOn offense: pick pass routes or runs.\nOn defense: pick coverage schemes.'},
+  {title:'QB MOVEMENT',text:'On offense, move your QB with\nWASD or Arrow Keys.\n\nAvoid the pass rush!\nOn iPad, use the on-screen D-pad.'},
+  {title:'PASSING',text:'To throw: Click and drag BACKWARDS\nfrom where you want to throw.\n\nThe ball goes the opposite direction\nof your drag — like a slingshot!\n\nLonger drag = more power.'},
+  {title:'CATCHING',text:'After you throw, the receiver\nwill try to catch the ball.\n\nDefenders nearby can intercept!\nThrow to open receivers.'},
+  {title:'RUNNING',text:'On run plays, control the ball carrier\nwith WASD/Arrows after the handoff.\n\nUse Q/E to juke left/right.\nAvoid tacklers!'},
+  {title:'SPRINT & JUKE',text:'Hold SPACE to sprint (drains stamina).\nPress Q to juke left, E to juke right.\n\nSprinting makes you faster but\nincreases fumble chance!'},
+  {title:'GAME FLOW',text:'Score touchdowns (6 pts + extra point).\nField goals are worth 3 points.\n\nThe game has 4 quarters with a clock.\nManage timeouts wisely!\n\nGood luck!'}
+];
+function startTutorial(){
+  setGameConstants();
+  inGame=true;showScreen('game');
+  initGame();
+  G.ph='tut';G.tutStep=0;G.tutDone=false;
+}
+function updTut(){
+  // Tutorial is draw-only, waits for input
+}
+function drawTut(){
+  drawField();
+  X.fillStyle='rgba(0,0,0,0.85)';X.fillRect(0,0,W,H);
+  const step=TUT_STEPS[G.tutStep];
+  // Step indicator
+  X.fillStyle='#888';X.font='12px sans-serif';X.textAlign='center';
+  X.fillText(`${G.tutStep+1} / ${TUT_STEPS.length}`,400,50);
+  // Title
+  X.fillStyle='#f0c040';X.font='bold 28px sans-serif';
+  X.fillText(step.title,400,120);
+  // Body text
+  X.fillStyle='#fff';X.font='16px sans-serif';
+  const lines=step.text.split('\n');
+  lines.forEach((line,i)=>X.fillText(line,400,180+i*28));
+  // Navigation
+  X.fillStyle='rgba(255,255,255,0.4)';X.font='14px sans-serif';
+  if(G.tutStep<TUT_STEPS.length-1){
+    X.fillText('Tap or SPACE to continue',400,520);
+  } else {
+    X.fillStyle='#2ecc71';X.font='bold 18px sans-serif';
+    X.fillText('Tap or SPACE to finish!',400,520);
+  }
+  // Back hint
+  if(G.tutStep>0){
+    X.fillStyle='rgba(255,255,255,0.3)';X.font='12px sans-serif';
+    X.fillText('Press B to go back',400,550);
+  }
+}
+function tutAdvance(){
+  G.tutStep++;
+  if(G.tutStep>=TUT_STEPS.length){
+    G.tutDone=true;S.tutorialDone=true;saveGame();
+    inGame=false;showScreen('home');renderHome();
+  }
+}
+function tutBack(){
+  if(G.tutStep>0)G.tutStep--;
+}
+
+// === GAME CLOCK ===
+function tickGameClock(){
+  if(G.clockStopped)return;
+  clockTickCounter++;
+  if(clockTickCounter>=CLOCK_TICK_FRAMES){
+    clockTickCounter=0;
+    G.gameClock=Math.max(0,G.gameClock-1);
+    // Two-minute warning
+    if(!G.twoMinWarning&&G.gameClock<=120&&(G.q===2||G.q===4)){
+      G.twoMinWarning=true;G.clockStopped=true;showMsg('TWO MINUTE WARNING',1500);
+    }
+    updSB();
+  }
+}
+
+// === XP CHOICE (after TD) ===
+function showXPChoice(){
+  pm.innerHTML='';
+  const t=document.createElement('h3');t.textContent='EXTRA POINT';pm.appendChild(t);
+  const kb=document.createElement('button');kb.textContent='KICK XP (+1)';kb.style.background='#27ae60';
+  kb.addEventListener('click',()=>{pm.classList.remove('show');
+    if(G.xpTeam==='h'){
+      if(Math.random()<0.95){G.hs+=1;showMsg('XP GOOD!',1000);}else showMsg('XP NO GOOD',1000);
+    } else {
+      if(Math.random()<0.95){G.as+=1;showMsg('XP GOOD!',1000);}else showMsg('XP NO GOOD',1000);
+    }
+    G.ph='pd';G.st=60;updSB();
+  });pm.appendChild(kb);
+  const tb=document.createElement('button');tb.textContent='GO FOR 2';tb.style.background='#e67e22';
+  tb.addEventListener('click',()=>{pm.classList.remove('show');
+    // Simple 2pt: 45% chance
+    if(G.xpTeam==='h'){
+      if(Math.random()<0.45){G.hs+=2;showMsg('2PT GOOD!',1200);}else showMsg('2PT FAILED',1000);
+    } else {
+      if(Math.random()<0.45){G.as+=2;showMsg('2PT GOOD!',1200);}else showMsg('2PT FAILED',1000);
+    }
+    G.ph='pd';G.st=60;updSB();
+  });pm.appendChild(tb);
+  pm.classList.add('show');
+}
+
+// === FIELD GOAL ===
+function startKick(type){
+  G.kickType=type;G.kickPhase=0;G.kickPower=0;G.kickDir=1;G.kickSpeed=1.8;
+  G.kickAccuracy=50;G.kickGood=false;G.kickResultTimer=0;
+  G.kickDist=type==='fg'?(100-G.los+17):0;
+  G.ph='kick';
+}
+function updKick(){
+  if(G.kickPhase===0){
+    // Power meter: oscillates 0-100
+    G.kickPower+=G.kickDir*G.kickSpeed;
+    if(G.kickPower>=100){G.kickPower=100;G.kickDir=-1;}
+    if(G.kickPower<=0){G.kickPower=0;G.kickDir=1;}
+  } else if(G.kickPhase===1){
+    // Accuracy meter: oscillates 0-100
+    G.kickAccuracy+=G.kickDir*2.2;
+    if(G.kickAccuracy>=100){G.kickAccuracy=100;G.kickDir=-1;}
+    if(G.kickAccuracy<=0){G.kickAccuracy=0;G.kickDir=1;}
+  } else if(G.kickPhase===2){
+    // Result phase
+    G.kickResultTimer++;
+    if(G.kickResultTimer>90){
+      if(G.kickGood){
+        G.hs+=3;showMsg('FIELD GOAL!',1500);
+      }
+      G.ph='pd';G.st=70;
+      // After FG: other team gets ball
+      G.pr='fg';updSB();
+    }
+  }
+}
+function kickConfirm(){
+  if(G.kickPhase===0){G.kickPhase=1;G.kickDir=1;G.kickAccuracy=50;}
+  else if(G.kickPhase===1){
+    G.kickPhase=2;
+    // Calculate FG success
+    const powerOpt=Math.abs(G.kickPower-75); // 75 is ideal power
+    const accOpt=Math.abs(G.kickAccuracy-50); // 50 is ideal accuracy
+    const distPenalty=Math.max(0,(G.kickDist-30)*1.5);
+    const chance=Math.max(5,95-powerOpt*0.5-accOpt*0.8-distPenalty);
+    G.kickGood=Math.random()*100<chance;
+    if(!G.kickGood)showMsg('NO GOOD!',1500);
+  }
+}
+function drawKickMeter(){
+  // Draw kick meter overlay
+  X.fillStyle='rgba(0,0,0,0.7)';X.fillRect(250,200,300,200);
+  X.strokeStyle='#f0c040';X.lineWidth=2;X.strokeRect(250,200,300,200);
+  X.fillStyle='#f0c040';X.font='bold 16px sans-serif';X.textAlign='center';
+  X.fillText(G.kickType==='fg'?`FIELD GOAL (${G.kickDist} yds)`:'EXTRA POINT',400,230);
+  if(G.kickPhase<=1){
+    // Power bar
+    X.fillStyle='#444';X.fillRect(280,260,240,25);
+    const pw=G.kickPower/100*240;
+    X.fillStyle=G.kickPhase===0?'#2ecc71':'#555';X.fillRect(280,260,pw,25);
+    X.fillStyle='#fff';X.font='12px sans-serif';X.fillText('POWER',400,278);
+    // Accuracy bar
+    X.fillStyle='#444';X.fillRect(280,300,240,25);
+    if(G.kickPhase===1){
+      const ac=G.kickAccuracy/100*240;
+      X.fillStyle='#3498db';X.fillRect(280,300,ac,25);
+    }
+    X.fillStyle='#fff';X.fillText('ACCURACY',400,318);
+    // Sweet spot indicators
+    X.fillStyle='rgba(255,255,0,0.3)';
+    X.fillRect(280+65/100*240,260,20/100*240,25); // power sweet spot 65-85
+    X.fillRect(280+40/100*240,300,20/100*240,25); // accuracy sweet spot 40-60
+    X.fillStyle='#fff';X.font='bold 14px sans-serif';
+    X.fillText('TAP / SPACE to set',400,360);
+  } else {
+    X.fillStyle=G.kickGood?'#2ecc71':'#e74c3c';X.font='bold 28px sans-serif';
+    X.fillText(G.kickGood?'GOOD!':'NO GOOD',400,310);
+  }
+}
+
+// === PUNT ===
+function startPunt(){
+  const dist=35+Math.floor(Math.random()*15);
+  G.puntLandYd=Math.min(99,G.los+dist);
+  G.puntAnim=0;G.ph='punt';
+}
+function updPunt(){
+  G.puntAnim++;
+  if(G.puntAnim>60){
+    if(G.puntLandYd>=99){
+      // Touchback
+      showMsg('TOUCHBACK',1200);
+      G.pos=G.pos==='h'?'a':'h';G.dn=1;G.ytg=10;G.los=25;
+    } else {
+      showMsg(`PUNT: ${G.puntLandYd-G.los} yds`,1200);
+      G.pos=G.pos==='h'?'a':'h';G.dn=1;G.ytg=10;G.los=100-G.puntLandYd;
+    }
+    G.ph='pd';G.st=70;G.pr='punt';updSB();
+  }
+}
+function drawPunt(){
+  const pr=Math.min(1,G.puntAnim/60);
+  const startY=y2y(G.los);const endY=y2y(G.puntLandYd);
+  const ballWX=W/2;const ballWY=startY+(endY-startY)*pr;
+  const arc=-120*4*pr*(1-pr);
+  const pp=project(ballWX,ballWY);
+  X.fillStyle='#8B4513';
+  X.beginPath();X.ellipse(pp.x,pp.y+arc*pp.s,6*pp.s,4*pp.s,0,0,Math.PI*2);X.fill();
+  X.fillStyle='#fff';X.font='bold 18px sans-serif';X.textAlign='center';
+  X.fillText('PUNT',400,280);
+}
+
+// === PRE-GAME MATCHUP ===
+function startMatchup(){
+  G.ph='matchup';G.matchupTimer=0;
+}
+function updMatchup(){
+  G.matchupTimer++;
+  if(G.matchupTimer>180){startCoinToss();}
+}
+function drawMatchup(){
+  X.fillStyle='rgba(0,0,0,0.9)';X.fillRect(0,0,W,H);
+  const t=TEAMS[S.teamIdx];
+  let oppIdx=S.isPlayoffs?Math.floor(Math.random()*TEAMS.length):
+    (S.week<=13?S.schedule[S.week-1].oppIdx:0);
+  const opp=TEAMS[oppIdx];
+  // Left team
+  X.fillStyle=t.c1;X.fillRect(0,100,380,400);
+  X.fillStyle='rgba(0,0,0,0.3)';X.fillRect(0,100,380,400);
+  X.fillStyle='#fff';X.font='bold 14px sans-serif';X.textAlign='center';
+  X.fillText(t.city,190,200);
+  X.font='bold 28px sans-serif';X.fillText(t.name,190,240);
+  X.font='16px sans-serif';X.fillText(`${S.wins}-${S.losses}`,190,275);
+  // Right team
+  X.fillStyle=opp.c1;X.fillRect(420,100,380,400);
+  X.fillStyle='rgba(0,0,0,0.3)';X.fillRect(420,100,380,400);
+  X.fillStyle='#fff';X.font='bold 14px sans-serif';X.textAlign='center';
+  X.fillText(opp.city,610,200);
+  X.font='bold 28px sans-serif';X.fillText(opp.name,610,240);
+  X.font='16px sans-serif';X.fillText(`Difficulty: ${opp.diff}`,610,275);
+  // VS
+  X.fillStyle='#f0c040';X.font='bold 48px sans-serif';X.fillText('VS',400,260);
+  // Tap to skip
+  X.fillStyle='rgba(255,255,255,0.4)';X.font='14px sans-serif';
+  X.fillText('Tap to skip',400,540);
+}
+
+// === COIN TOSS ===
+function startCoinToss(){
+  G.ph='cointoss';G.coinAnim=0;G.coinChoice=null;G.coinResult=null;
+}
+function updCoinToss(){
+  if(G.coinChoice&&G.coinAnim>0){
+    G.coinAnim++;
+    if(G.coinAnim>90&&!G.coinResult){
+      G.coinResult=Math.random()<0.5?'H':'T';
+      const won=G.coinChoice===G.coinResult;
+      G.receiveFirst=won?'h':'a';
+      G.pos=G.receiveFirst;
+    }
+    if(G.coinAnim>180){
+      G.ph='pp';G.playClock=PLAY_CLOCK;G.clockStopped=true;
+      updSB();showPM();
+    }
+  }
+}
+function drawCoinToss(){
+  X.fillStyle='rgba(0,0,0,0.9)';X.fillRect(0,0,W,H);
+  X.fillStyle='#f0c040';X.font='bold 24px sans-serif';X.textAlign='center';
+  X.fillText('COIN TOSS',400,120);
+  if(!G.coinChoice){
+    X.fillStyle='#fff';X.font='18px sans-serif';
+    X.fillText('Choose:',400,220);
+    // Draw buttons on canvas
+    X.fillStyle='#c0a030';X.fillRect(250,260,120,50);
+    X.fillStyle='#a0a0a0';X.fillRect(430,260,120,50);
+    X.fillStyle='#000';X.font='bold 18px sans-serif';
+    X.fillText('HEADS',310,292);X.fillText('TAILS',490,292);
+  } else {
+    // Animate coin
+    const pr=Math.min(1,G.coinAnim/90);
+    const sz=40;const squeeze=Math.abs(Math.sin(pr*Math.PI*6));
+    X.fillStyle='#f0c040';
+    X.beginPath();X.ellipse(400,300,sz,sz*squeeze,0,0,Math.PI*2);X.fill();
+    X.fillStyle='#000';X.font='bold 16px sans-serif';
+    if(G.coinResult){
+      X.fillStyle='#fff';X.font='bold 28px sans-serif';
+      X.fillText(G.coinResult==='H'?'HEADS':'TAILS',400,400);
+      const won=G.coinChoice===G.coinResult;
+      X.fillStyle=won?'#2ecc71':'#e74c3c';X.font='bold 20px sans-serif';
+      X.fillText(won?'YOU WON THE TOSS!':'YOU LOST THE TOSS',400,440);
+      X.fillStyle='#fff';X.font='16px sans-serif';
+      X.fillText(won?'You receive first':'They receive first',400,470);
+    }
+  }
+}
+function coinTossClick(sx,sy){
+  if(!G.coinChoice){
+    if(sx>=250&&sx<=370&&sy>=260&&sy<=310)G.coinChoice='H';
+    else if(sx>=430&&sx<=550&&sy>=260&&sy<=310)G.coinChoice='T';
+    if(G.coinChoice)G.coinAnim=1;
+  }
+}
+
+// === HALFTIME ===
+function updHalftime(){
+  G.halftimeTimer--;
+  if(G.halftimeTimer<=0){
+    // After halftime: team that didn't receive first now gets ball
+    G.pos=G.receiveFirst==='h'?'a':'h';
+    G.dn=1;G.ytg=10;G.los=25;
+    G.playClock=PLAY_CLOCK;G.clockStopped=true;
+    updSB();showPM();
+  }
+}
+function drawHalftime(){
+  X.fillStyle='rgba(0,0,0,0.92)';X.fillRect(0,0,W,H);
+  X.fillStyle='#f0c040';X.font='bold 36px sans-serif';X.textAlign='center';
+  X.fillText('HALFTIME',400,220);
+  const t=TEAMS[S.teamIdx];
+  X.fillStyle='#fff';X.font='bold 28px sans-serif';
+  X.fillText(`${t.abbr} ${G.hs} - ${G.as} CPU`,400,300);
+  X.fillStyle='rgba(255,255,255,0.4)';X.font='14px sans-serif';
+  X.fillText('Game will resume shortly...',400,380);
+}
+
+// === FUMBLE ===
+const FUMBLE_CHANCE = 0.06;
+function checkFumble(carrier,offTeam){
+  const sprintMod=G.sprint?0.03:0;
+  if(Math.random()<FUMBLE_CHANCE+sprintMod){
+    showMsg('FUMBLE!',1500);
+    G.fumbleBall={x:carrier.x,y:carrier.y,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4};
+    G.fumbleTimer=0;G.ph='fumble';
+    G.fumbleOffTeam=offTeam;
+    mkP(carrier.x,carrier.y,'#f39c12',20);
+    return true;
+  }
+  return false;
+}
+function updFumble(){
+  G.fumbleTimer++;
+  const fb=G.fumbleBall;if(!fb)return;
+  fb.x+=fb.vx;fb.y+=fb.vy;fb.vx*=0.92;fb.vy*=0.92;
+  fb.x=clamp(fb.x,20,W-20);fb.y=clamp(fb.y,YPX,H-YPX);
+  ball.x=fb.x;ball.y=fb.y;ball.air=false;
+  // Players converge on ball
+  P.forEach(p=>{
+    const dx=fb.x-p.x,dy=fb.y-p.y,d=Math.hypot(dx,dy);
+    if(d>5){const spd=2.5;p.x+=dx/d*spd;p.y+=dy/d*spd;}
+  });
+  if(G.fumbleTimer>60){
+    // Determine recovery — closest player
+    let closest=null,cd=Infinity;
+    P.forEach(p=>{const d=Math.hypot(p.x-fb.x,p.y-fb.y);if(d<cd){cd=d;closest=p;}});
+    if(closest){
+      const defRecovery=closest.team!==(G.fumbleOffTeam);
+      if(defRecovery){
+        showMsg('FUMBLE RECOVERED!',1500);
+        // Turnover
+        G.pos=G.pos==='h'?'a':'h';G.dn=1;G.ytg=10;
+        const recYd=Math.round((H-fb.y-YPX)/(H-2*YPX)*100);
+        G.los=clamp(recYd,1,99);
+      } else {
+        showMsg('OFFENSE RECOVERS',1200);
+        const recYd=Math.round((H-fb.y-YPX)/(H-2*YPX)*100);
+        G.los=clamp(recYd,1,99);
+        G.dn++;
+        if(G.dn>4){G.pos=G.pos==='h'?'a':'h';G.dn=1;G.ytg=10;G.los=25;}
+      }
+    }
+    G.ph='pd';G.st=70;G.pr='fumble';updSB();
+  }
+}
+function drawFumble(){
+  const fb=G.fumbleBall;if(!fb)return;
+  const pp=project(fb.x,fb.y);
+  X.fillStyle='#8B4513';
+  X.beginPath();X.ellipse(pp.x,pp.y,6*pp.s,4*pp.s,G.fumbleTimer*0.2,0,Math.PI*2);X.fill();
+  // "FUMBLE!" text
+  X.fillStyle='#f39c12';X.font='bold 24px sans-serif';X.textAlign='center';
+  X.fillText('FUMBLE!',400,100);
+}
+
+// === CPU AI: 4th down decisions ===
+function cpuFourthDown(){
+  const trailing=G.as<G.hs;const late=G.q>=4&&G.gameClock<120;
+  // CPU punts unless trailing late or in FG range
+  if(G.los<=30&&!late){
+    // Punt
+    const dist=35+Math.floor(Math.random()*15);
+    const land=Math.min(99,G.los+dist);
+    if(land>=99){G.pos='h';G.dn=1;G.ytg=10;G.los=25;showMsg('CPU PUNT: TOUCHBACK',1200);}
+    else{showMsg(`CPU PUNT: ${land-G.los} yds`,1200);G.pos='h';G.dn=1;G.ytg=10;G.los=100-land;}
+    G.ph='pd';G.st=70;G.pr='punt';updSB();return true;
+  }
+  if(G.los>=30){
+    // Try FG
+    const fgDist=100-G.los+17;
+    const chance=Math.max(10,90-fgDist*1.2);
+    if(Math.random()*100<chance){G.as+=3;showMsg('CPU FIELD GOAL!',1500);}
+    else showMsg('CPU FG NO GOOD',1200);
+    G.pos='h';G.dn=1;G.ytg=10;G.los=25;
+    G.ph='pd';G.st=70;G.pr='fg';updSB();return true;
+  }
+  if(trailing&&late)return false; // go for it
+  // Punt from bad position
+  G.pos='h';G.dn=1;G.ytg=10;G.los=Math.max(10,G.los-35);
+  showMsg('CPU PUNT',1200);G.ph='pd';G.st=70;G.pr='punt';updSB();return true;
 }
 
 // === 3D DRAWING ===
@@ -1997,7 +2546,9 @@ function updSB(){
   sA.textContent=`${oppAbbr}: ${G.as}`;
   const ord=['1st','2nd','3rd','4th'][G.dn-1]||'4th';
   const side=G.pos==='h'?'OFF':'DEF';
-  sI.textContent=`Q${G.q} | ${ord} & ${G.ytg} | ${side}`;
+  const min=Math.floor(G.gameClock/60);const sec=G.gameClock%60;
+  const clkStr=`${min}:${sec<10?'0':''}${sec}`;
+  sI.textContent=`Q${G.q} ${clkStr} | ${ord} & ${G.ytg} | ${side} | TO:${G.timeoutsH}`;
 }
 
 // === MAIN LOOP ===
@@ -2005,7 +2556,9 @@ let inGame=false;
 function update(){
   if(!inGame)return;
   // Show touch controls only during player-controlled phases
-  showTouchControls(['live','rac','run'].includes(G.ph));
+  showTouchControls(['live','rac','run','kick'].includes(G.ph));
+  // Tick game clock during active play phases
+  if(['live','bia','rac','run','dl','dbia','drac'].includes(G.ph))tickGameClock();
   if(G.throwAnim>0){G.throwAnim--;if(G.throwAnim===6&&G.throwPending){executeThrow(G.throwPending.qb,G.throwPending.ddx,G.throwPending.ddy,G.throwPending.power);G.throwPending=null;}}
   if(G.catchAnim>0)G.catchAnim--;
   switch(G.ph){
@@ -2018,6 +2571,25 @@ function update(){
     case 'drac':updDRAC();break;
     case 'tackle':G.tackleAnim--;if(G.tackleAnim<=0)endPlay(G.pendingEndPlay);break;
     case 'pd':G.st--;if(G.st<=0)advance();break;
+    case 'xp':if(!pm.classList.contains('show')){
+        if(G.xpTeam==='a'){
+          // CPU auto-kicks XP (or goes for 2 when trailing late)
+          const trailing=G.as<G.hs&&G.q>=4&&G.gameClock<120;
+          if(trailing&&(G.hs-G.as)===1){
+            if(Math.random()<0.45){G.as+=2;showMsg('CPU 2PT GOOD!',1000);}else showMsg('CPU 2PT FAILED',1000);
+          } else {
+            if(Math.random()<0.95){G.as+=1;showMsg('CPU XP GOOD',800);}else showMsg('CPU XP NO GOOD',800);
+          }
+          G.ph='pd';G.st=60;updSB();
+        } else showXPChoice();
+      }break;
+    case 'kick':updKick();break;
+    case 'punt':updPunt();break;
+    case 'matchup':updMatchup();break;
+    case 'cointoss':updCoinToss();break;
+    case 'halftime':updHalftime();break;
+    case 'fumble':updFumble();break;
+    case 'tut':updTut();break;
   }
   updParts();
   updAnimState();
@@ -2032,8 +2604,15 @@ function updAnimState(){
 }
 function draw(){
   if(!inGame)return;
+  if(G.ph==='matchup'){drawMatchup();return;}
+  if(G.ph==='cointoss'){drawCoinToss();return;}
+  if(G.ph==='halftime'){drawHalftime();return;}
+  if(G.ph==='tut'){drawTut();return;}
   drawField();drawRoutes();drawParts();
-  if(!['title','pp','go'].includes(G.ph)){drawP();drawBall();drawStam();drawAim();}
+  if(!['title','pp','go','xp','kick','punt','fumble'].includes(G.ph)){drawP();drawBall();drawStam();drawAim();}
+  if(G.ph==='kick')drawKickMeter();
+  if(G.ph==='punt'){drawP();drawPunt();}
+  if(G.ph==='fumble'){drawP();drawFumble();}
 }
 function loop(){try{update();}catch(e){console.error('update:',e);}try{draw();}catch(e){console.error('draw:',e);}requestAnimationFrame(loop);}
 
