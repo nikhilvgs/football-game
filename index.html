@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Retro Bowl</title>
+<title>Madden 26</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#1a1a2e;display:flex;justify-content:center;align-items:center;
@@ -20,14 +20,21 @@ canvas{display:block;border-radius:6px;box-shadow:0 0 30px rgba(0,0,0,0.6);}
   text-shadow:2px 2px 6px rgba(0,0,0,0.9);
   pointer-events:none;opacity:0;transition:opacity 0.3s;z-index:5;}
 #pm{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  display:none;flex-direction:column;gap:8px;z-index:10;
-  background:rgba(0,0,0,0.88);padding:18px 24px;border-radius:10px;min-width:240px;}
+  display:none;flex-direction:column;gap:6px;z-index:10;
+  background:linear-gradient(180deg,rgba(15,15,30,0.96),rgba(5,5,15,0.98));
+  padding:16px 20px;border-radius:12px;min-width:320px;
+  border:1px solid rgba(240,192,64,0.25);box-shadow:0 8px 32px rgba(0,0,0,0.8);}
 #pm.show{display:flex;}
-#pm h3{color:#f0c040;text-align:center;font-size:16px;margin-bottom:2px;}
-#pm button{padding:9px 14px;font-size:14px;font-weight:bold;
-  border:2px solid rgba(255,255,255,0.15);border-radius:7px;
-  cursor:pointer;transition:all 0.15s;color:#fff;}
+#pm h3{color:#f0c040;text-align:center;font-size:14px;margin-bottom:4px;letter-spacing:2px;text-transform:uppercase;}
+#pm button{padding:10px 14px;font-size:13px;font-weight:bold;
+  border:2px solid rgba(255,255,255,0.1);border-radius:8px;
+  cursor:pointer;transition:all 0.15s;color:#fff;display:flex;align-items:center;gap:10px;text-align:left;}
 #pm button:hover{transform:scale(1.03);filter:brightness(1.2);}
+#pm button .play-diagram{width:50px;height:36px;border-radius:4px;background:rgba(255,255,255,0.08);
+  display:flex;align-items:center;justify-content:center;font-size:10px;color:#aaa;flex-shrink:0;}
+#pm button .play-info{display:flex;flex-direction:column;}
+#pm button .play-name{font-size:14px;}
+#pm button .play-desc{font-size:10px;color:#aaa;font-weight:normal;}
 /* === MANAGEMENT SCREENS === */
 .screen{position:absolute;top:0;left:0;width:100%;height:100%;
   display:none;flex-direction:column;align-items:center;
@@ -54,7 +61,9 @@ canvas{display:block;border-radius:6px;box-shadow:0 0 30px rgba(0,0,0,0.6);}
 .fan-bar{width:200px;height:14px;background:rgba(255,255,255,0.1);border-radius:7px;overflow:hidden;display:inline-block;vertical-align:middle;}
 .fan-fill{height:100%;border-radius:7px;background:linear-gradient(90deg,#e74c3c,#f0c040,#2ecc71);transition:width 0.3s;}
 /* Team select grid */
-.team-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px;}
+.team-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:6px;}
+.div-header{grid-column:1/-1;text-align:center;font-size:12px;font-weight:bold;color:#f0c040;
+  padding:4px 0 2px;border-bottom:1px solid rgba(240,192,64,0.2);margin-top:4px;letter-spacing:1px;}
 .team-btn{padding:12px 8px;border-radius:8px;border:2px solid rgba(255,255,255,0.15);
   cursor:pointer;text-align:center;font-weight:bold;font-size:13px;transition:all 0.15s;color:#fff;}
 .team-btn:hover{transform:scale(1.05);filter:brightness(1.2);}
@@ -123,12 +132,23 @@ canvas{display:block;border-radius:6px;box-shadow:0 0 30px rgba(0,0,0,0.6);}
 <body>
 <div id="gc">
   <canvas id="c" width="800" height="600"></canvas>
-  <div id="sb">
-    <div class="sb" id="sH">YOU: 0</div>
-    <div class="sb" id="sI">Q1 | 1st & 10</div>
-    <div class="sb" id="sA">CPU: 0</div>
+  <!-- TV Broadcast-style Scoreboard -->
+  <div id="sb" style="padding:0;display:flex;justify-content:center;">
+    <div id="scoreboard" style="display:flex;align-items:stretch;border-radius:0 0 8px 8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.6);pointer-events:none;">
+      <div id="sH" style="display:flex;align-items:center;gap:6px;padding:4px 14px;font-size:14px;font-weight:bold;letter-spacing:1px;min-width:90px;justify-content:center;">BUF 0</div>
+      <div id="sI" style="background:rgba(20,20,20,0.95);color:#fff;padding:4px 12px;font-size:12px;font-weight:bold;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:140px;">
+        <div id="sI_top" style="font-size:13px;letter-spacing:1px;">Q1 3:00</div>
+        <div id="sI_bot" style="font-size:11px;color:#f0c040;">1st & 10</div>
+      </div>
+      <div id="sA" style="display:flex;align-items:center;gap:6px;padding:4px 14px;font-size:14px;font-weight:bold;letter-spacing:1px;min-width:90px;justify-content:center;">CPU 0</div>
+    </div>
   </div>
   <div id="msg"></div>
+  <!-- Commentary ticker -->
+  <div id="commentary" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,0.85);color:#fff;padding:6px 18px;border-radius:6px;font-size:12px;
+    font-weight:bold;letter-spacing:0.5px;pointer-events:none;opacity:0;transition:opacity 0.4s;z-index:6;
+    max-width:90%;text-align:center;border:1px solid rgba(240,192,64,0.3);"></div>
   <div id="diceRoll" style="position:absolute;top:28%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:20px;font-weight:bold;text-align:center;text-shadow:2px 2px 6px rgba(0,0,0,0.9);pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:6;"></div>
   <div id="pm"></div>
   <!-- Management Screens -->
@@ -201,22 +221,46 @@ canvas{display:block;border-radius:6px;box-shadow:0 0 30px rgba(0,0,0,0.6);}
 // =============================================
 
 const TEAMS=[
-{name:'Titans',city:'Nashville',abbr:'TEN',c1:'#4B92DB',c2:'#C8102E',diff:3},
-{name:'Wolves',city:'Minnesota',abbr:'MIN',c1:'#4F5D75',c2:'#FFC107',diff:2},
-{name:'Eagles',city:'Philadelphia',abbr:'PHI',c1:'#004C54',c2:'#A5ACAF',diff:4},
-{name:'Sharks',city:'San Jose',abbr:'SJ',c1:'#006D75',c2:'#EA7200',diff:2},
-{name:'Bears',city:'Chicago',abbr:'CHI',c1:'#0B162A',c2:'#C83803',diff:3},
-{name:'Hawks',city:'Atlanta',abbr:'ATL',c1:'#A71930',c2:'#000000',diff:4},
-{name:'Cobras',city:'Arizona',abbr:'ARI',c1:'#97233F',c2:'#FFB612',diff:1},
-{name:'Storm',city:'Tampa Bay',abbr:'TB',c1:'#0A0A3C',c2:'#FF7900',diff:2},
-{name:'Panthers',city:'Carolina',abbr:'CAR',c1:'#0085CA',c2:'#BFC0BF',diff:3},
-{name:'Stallions',city:'Denver',abbr:'DEN',c1:'#002244',c2:'#FB4F14',diff:3},
-{name:'Foxes',city:'Cincinnati',abbr:'CIN',c1:'#FB4F14',c2:'#000000',diff:1},
-{name:'Dragons',city:'Las Vegas',abbr:'LV',c1:'#A5ACAF',c2:'#000000',diff:4},
-{name:'Knights',city:'New York',abbr:'NY',c1:'#003A70',c2:'#C9243F',diff:5},
-{name:'Thunder',city:'Oklahoma',abbr:'OKC',c1:'#007AC1',c2:'#EF6C00',diff:2},
-{name:'Vipers',city:'Miami',abbr:'MIA',c1:'#008E97',c2:'#FC4C02',diff:3},
-{name:'Bulldogs',city:'Cleveland',abbr:'CLE',c1:'#311D00',c2:'#FF3C00',diff:1},
+// AFC East
+{name:'Bills',city:'Buffalo',abbr:'BUF',c1:'#00338D',c2:'#C60C30',diff:5,div:'AFC East'},
+{name:'Dolphins',city:'Miami',abbr:'MIA',c1:'#008E97',c2:'#FC4C02',diff:4,div:'AFC East'},
+{name:'Patriots',city:'New England',abbr:'NE',c1:'#002244',c2:'#C60C30',diff:2,div:'AFC East'},
+{name:'Jets',city:'New York',abbr:'NYJ',c1:'#125740',c2:'#FFFFFF',diff:3,div:'AFC East'},
+// AFC North
+{name:'Ravens',city:'Baltimore',abbr:'BAL',c1:'#241773',c2:'#000000',diff:5,div:'AFC North'},
+{name:'Bengals',city:'Cincinnati',abbr:'CIN',c1:'#FB4F14',c2:'#000000',diff:4,div:'AFC North'},
+{name:'Browns',city:'Cleveland',abbr:'CLE',c1:'#311D00',c2:'#FF3C00',diff:3,div:'AFC North'},
+{name:'Steelers',city:'Pittsburgh',abbr:'PIT',c1:'#101820',c2:'#FFB612',diff:4,div:'AFC North'},
+// AFC South
+{name:'Texans',city:'Houston',abbr:'HOU',c1:'#03202F',c2:'#A71930',diff:4,div:'AFC South'},
+{name:'Colts',city:'Indianapolis',abbr:'IND',c1:'#002C5F',c2:'#FFFFFF',diff:3,div:'AFC South'},
+{name:'Jaguars',city:'Jacksonville',abbr:'JAX',c1:'#006778',c2:'#D7A22A',diff:3,div:'AFC South'},
+{name:'Titans',city:'Tennessee',abbr:'TEN',c1:'#0C2340',c2:'#4B92DB',diff:2,div:'AFC South'},
+// AFC West
+{name:'Broncos',city:'Denver',abbr:'DEN',c1:'#FB4F14',c2:'#002244',diff:3,div:'AFC West'},
+{name:'Chiefs',city:'Kansas City',abbr:'KC',c1:'#E31837',c2:'#FFB81C',diff:5,div:'AFC West'},
+{name:'Raiders',city:'Las Vegas',abbr:'LV',c1:'#000000',c2:'#A5ACAF',diff:2,div:'AFC West'},
+{name:'Chargers',city:'Los Angeles',abbr:'LAC',c1:'#0080C6',c2:'#FFC20E',diff:4,div:'AFC West'},
+// NFC East
+{name:'Cowboys',city:'Dallas',abbr:'DAL',c1:'#003594',c2:'#869397',diff:4,div:'NFC East'},
+{name:'Giants',city:'New York',abbr:'NYG',c1:'#0B2265',c2:'#A71930',diff:2,div:'NFC East'},
+{name:'Eagles',city:'Philadelphia',abbr:'PHI',c1:'#004C54',c2:'#A5ACAF',diff:5,div:'NFC East'},
+{name:'Commanders',city:'Washington',abbr:'WAS',c1:'#5A1414',c2:'#FFB612',diff:3,div:'NFC East'},
+// NFC North
+{name:'Bears',city:'Chicago',abbr:'CHI',c1:'#0B162A',c2:'#C83803',diff:3,div:'NFC North'},
+{name:'Lions',city:'Detroit',abbr:'DET',c1:'#0076B6',c2:'#B0B7BC',diff:5,div:'NFC North'},
+{name:'Packers',city:'Green Bay',abbr:'GB',c1:'#203731',c2:'#FFB612',diff:4,div:'NFC North'},
+{name:'Vikings',city:'Minnesota',abbr:'MIN',c1:'#4F2683',c2:'#FFC62F',diff:4,div:'NFC North'},
+// NFC South
+{name:'Falcons',city:'Atlanta',abbr:'ATL',c1:'#A71930',c2:'#000000',diff:3,div:'NFC South'},
+{name:'Panthers',city:'Carolina',abbr:'CAR',c1:'#101820',c2:'#0085CA',diff:2,div:'NFC South'},
+{name:'Saints',city:'New Orleans',abbr:'NO',c1:'#101820',c2:'#D3BC8D',diff:2,div:'NFC South'},
+{name:'Buccaneers',city:'Tampa Bay',abbr:'TB',c1:'#D50A0A',c2:'#34302B',diff:4,div:'NFC South'},
+// NFC West
+{name:'Cardinals',city:'Arizona',abbr:'ARI',c1:'#97233F',c2:'#000000',diff:2,div:'NFC West'},
+{name:'Rams',city:'Los Angeles',abbr:'LAR',c1:'#003594',c2:'#FFA300',diff:4,div:'NFC West'},
+{name:'49ers',city:'San Francisco',abbr:'SF',c1:'#AA0000',c2:'#B3995D',diff:5,div:'NFC West'},
+{name:'Seahawks',city:'Seattle',abbr:'SEA',c1:'#002244',c2:'#69BE28',diff:3,div:'NFC West'},
 ];
 
 const FIRST_NAMES=['James','John','Robert','Michael','David','Chris','Daniel','Matt','Josh','Andrew',
@@ -231,6 +275,402 @@ const LAST_NAMES=['Smith','Johnson','Williams','Brown','Jones','Davis','Wilson',
   'Evans','Edwards','Collins','Stewart','Morris','Reed','Cook','Morgan','Bell','Murphy'];
 
 const POSITIONS=['QB','WR1','WR2','WR3','RB','OL','OL','OL','OL','OL'];
+
+// Generate a player with a specific name and target OVR for a position
+function genRealPlayer(name,pos,targetOvr,age){
+  // Generate stats that will produce the target OVR for this position
+  const p=pos.replace(/[0-9]/g,'');
+  let w;
+  switch(p){
+    case 'QB':w={spd:0.1,str:0.1,arm:0.45,cat:0.1,sta:0.25};break;
+    case 'WR':w={spd:0.35,str:0.05,arm:0.05,cat:0.4,sta:0.15};break;
+    case 'RB':w={spd:0.35,str:0.25,arm:0.0,cat:0.1,sta:0.3};break;
+    case 'OL':w={spd:0.05,str:0.45,arm:0.0,cat:0.0,sta:0.5};break;
+    case 'CB':w={spd:0.4,str:0.05,arm:0.0,cat:0.35,sta:0.2};break;
+    case 'LB':w={spd:0.3,str:0.3,arm:0.0,cat:0.1,sta:0.3};break;
+    case 'SF':w={spd:0.35,str:0.05,arm:0.0,cat:0.3,sta:0.3};break;
+    case 'DL':w={spd:0.1,str:0.45,arm:0.0,cat:0.0,sta:0.45};break;
+    default:w={spd:0.2,str:0.2,arm:0.2,cat:0.2,sta:0.2};break;
+  }
+  // Generate base stats around targetOvr, weighted by position importance
+  const stats={};
+  const keys=['spd','str','arm','cat','sta'];
+  keys.forEach(k=>{
+    const weight=w[k];
+    // Higher weight = more important = higher stat
+    const base=targetOvr+Math.round((weight-0.2)*30);
+    stats[k]=clamp(base+Math.floor(Math.random()*7)-3,35,99);
+  });
+  // Recalculate to match target
+  let ovr=calcOVR(pos,stats);
+  let attempts=0;
+  while(Math.abs(ovr-targetOvr)>2&&attempts<20){
+    const diff=targetOvr-ovr;
+    // Adjust the most weighted stat
+    let maxK='spd',maxW=0;
+    keys.forEach(k=>{if(w[k]>maxW){maxW=w[k];maxK=k;}});
+    stats[maxK]=clamp(stats[maxK]+Math.round(diff/maxW*0.5),35,99);
+    ovr=calcOVR(pos,stats);
+    attempts++;
+  }
+  return {name,pos,stats,ovr:targetOvr,age:age||25,salary:Math.floor(targetOvr/8),morale:50,injWeeks:0};
+}
+
+// All 32 NFL team rosters with real players (2025-2026 season / Madden 26)
+const TEAM_ROSTERS={
+// 0: Buffalo Bills
+0:[
+  {n:'Josh Allen',p:'QB',o:99,a:29},{n:'D.J. Moore',p:'WR1',o:84,a:28},
+  {n:'Khalil Shakir',p:'WR2',o:82,a:25},{n:'Curtis Samuel',p:'WR3',o:78,a:29},
+  {n:'James Cook',p:'RB',o:89,a:26},{n:'Dion Dawkins',p:'OL',o:85,a:31},
+  {n:'Spencer Brown',p:'OL',o:78,a:26},{n:'Connor McGovern',p:'OL',o:76,a:28},
+  {n:'O\'Cyrus Torrence',p:'OL',o:76,a:24},{n:'David Edwards',p:'OL',o:78,a:27},
+  {n:'Rasul Douglas',p:'CB',o:82,a:30},{n:'Maxwell Hairston',p:'CB',o:76,a:23},
+  {n:'Matt Milano',p:'LB',o:88,a:30},{n:'Terrel Bernard',p:'LB',o:83,a:27},
+  {n:'Taylor Rapp',p:'SF',o:80,a:27},{n:'Ed Oliver',p:'DL',o:86,a:27}
+],
+// 1: Miami Dolphins
+1:[
+  {n:'Malik Willis',p:'QB',o:78,a:26},{n:'Jaylen Waddle',p:'WR1',o:87,a:27},
+  {n:'Malik Washington',p:'WR2',o:72,a:24},{n:'River Cracraft',p:'WR3',o:68,a:29},
+  {n:'De\'Von Achane',p:'RB',o:87,a:23},{n:'Terron Armstead',p:'OL',o:88,a:33},
+  {n:'Robert Jones',p:'OL',o:76,a:26},{n:'Aaron Brewer',p:'OL',o:76,a:27},
+  {n:'Robert Hunt',p:'OL',o:82,a:28},{n:'Austin Jackson',p:'OL',o:74,a:26},
+  {n:'Kendall Fuller',p:'CB',o:82,a:30},{n:'Kool-Aid McKinstry',p:'CB',o:76,a:22},
+  {n:'Jordyn Brooks',p:'LB',o:85,a:27},{n:'David Long Jr.',p:'LB',o:80,a:28},
+  {n:'Jevon Holland',p:'SF',o:84,a:25},{n:'Calais Campbell',p:'DL',o:82,a:39}
+],
+// 2: New England Patriots
+2:[
+  {n:'Drake Maye',p:'QB',o:78,a:23},{n:'Ja\'Lynn Polk',p:'WR1',o:74,a:23},
+  {n:'Demario Douglas',p:'WR2',o:76,a:24},{n:'K.J. Osborn',p:'WR3',o:72,a:27},
+  {n:'Rhamondre Stevenson',p:'RB',o:84,a:27},{n:'Will Campbell',p:'OL',o:78,a:22},
+  {n:'Cole Strange',p:'OL',o:76,a:26},{n:'David Andrews',p:'OL',o:80,a:32},
+  {n:'Mike Onwenu',p:'OL',o:82,a:27},{n:'Chukwuma Okorafor',p:'OL',o:72,a:28},
+  {n:'Christian Gonzalez',p:'CB',o:95,a:23},{n:'Jonathan Jones',p:'CB',o:80,a:31},
+  {n:'Ja\'Whaun Bentley',p:'LB',o:80,a:28},{n:'Anfernee Jennings',p:'LB',o:74,a:27},
+  {n:'Kyle Dugger',p:'SF',o:86,a:29},{n:'Keion White',p:'DL',o:80,a:25}
+],
+// 3: New York Jets
+3:[
+  {n:'Justin Fields',p:'QB',o:78,a:26},{n:'Garrett Wilson',p:'WR1',o:89,a:25},
+  {n:'Allen Lazard',p:'WR2',o:78,a:30},{n:'Xavier Gipson',p:'WR3',o:72,a:25},
+  {n:'Breece Hall',p:'RB',o:88,a:24},{n:'Armand Membou',p:'OL',o:78,a:23},
+  {n:'Alijah Vera-Tucker',p:'OL',o:82,a:26},{n:'Tyler Linderbaum',p:'OL',o:78,a:25},
+  {n:'Morgan Moses',p:'OL',o:78,a:33},{n:'Laken Tomlinson',p:'OL',o:76,a:33},
+  {n:'D.J. Reed',p:'CB',o:86,a:28},{n:'Adonai Mitchell',p:'CB',o:76,a:23},
+  {n:'Quincy Williams',p:'LB',o:84,a:28},{n:'C.J. Mosley',p:'LB',o:82,a:33},
+  {n:'Chuck Clark',p:'SF',o:78,a:30},{n:'Solomon Thomas',p:'DL',o:76,a:30}
+],
+// 4: Baltimore Ravens
+4:[
+  {n:'Lamar Jackson',p:'QB',o:99,a:28},{n:'Zay Flowers',p:'WR1',o:86,a:24},
+  {n:'Rashod Bateman',p:'WR2',o:80,a:26},{n:'Nelson Agholor',p:'WR3',o:76,a:32},
+  {n:'Derrick Henry',p:'RB',o:98,a:31},{n:'Ronnie Stanley',p:'OL',o:85,a:31},
+  {n:'Tyler Linderbaum',p:'OL',o:86,a:25},{n:'Patrick Mekari',p:'OL',o:78,a:28},
+  {n:'Andrew Vorhees',p:'OL',o:74,a:26},{n:'Ben Cleveland',p:'OL',o:74,a:27},
+  {n:'Marlon Humphrey',p:'CB',o:92,a:29},{n:'Jaire Alexander',p:'CB',o:91,a:28},
+  {n:'Roquan Smith',p:'LB',o:94,a:28},{n:'Patrick Queen',p:'LB',o:84,a:26},
+  {n:'Kyle Hamilton',p:'SF',o:90,a:24},{n:'Nnamdi Madubuike',p:'DL',o:93,a:27}
+],
+// 5: Cincinnati Bengals
+5:[
+  {n:'Joe Burrow',p:'QB',o:97,a:28},{n:'Ja\'Marr Chase',p:'WR1',o:99,a:25},
+  {n:'Tee Higgins',p:'WR2',o:87,a:26},{n:'Andrei Iosivas',p:'WR3',o:74,a:25},
+  {n:'Zack Moss',p:'RB',o:82,a:27},{n:'Orlando Brown Jr.',p:'OL',o:83,a:29},
+  {n:'Alex Cappa',p:'OL',o:80,a:30},{n:'Ted Karras',p:'OL',o:78,a:31},
+  {n:'Amarius Mims',p:'OL',o:76,a:23},{n:'Cordell Volson',p:'OL',o:74,a:27},
+  {n:'Cam Taylor-Britt',p:'CB',o:80,a:25},{n:'DJ Turner',p:'CB',o:76,a:24},
+  {n:'Germaine Pratt',p:'LB',o:82,a:28},{n:'Logan Wilson',p:'LB',o:84,a:28},
+  {n:'Vonn Bell',p:'SF',o:80,a:30},{n:'Trey Hendrickson',p:'DL',o:92,a:30}
+],
+// 6: Cleveland Browns
+6:[
+  {n:'Shedeur Sanders',p:'QB',o:72,a:23},{n:'Jerry Jeudy',p:'WR1',o:83,a:26},
+  {n:'Cedric Tillman',p:'WR2',o:78,a:25},{n:'Elijah Moore',p:'WR3',o:78,a:25},
+  {n:'Nick Chubb',p:'RB',o:84,a:29},{n:'Joel Bitonio',p:'OL',o:90,a:34},
+  {n:'Jack Conklin',p:'OL',o:82,a:30},{n:'Ethan Pocic',p:'OL',o:78,a:29},
+  {n:'Dawand Jones',p:'OL',o:76,a:24},{n:'Wyatt Teller',p:'OL',o:84,a:31},
+  {n:'Denzel Ward',p:'CB',o:90,a:28},{n:'Martin Emerson',p:'CB',o:82,a:25},
+  {n:'Jeremiah Owusu-Koramoah',p:'LB',o:86,a:26},{n:'Jordan Hicks',p:'LB',o:80,a:32},
+  {n:'Grant Delpit',p:'SF',o:82,a:26},{n:'Myles Garrett',p:'DL',o:99,a:29}
+],
+// 7: Pittsburgh Steelers
+7:[
+  {n:'Aaron Rodgers',p:'QB',o:82,a:42},{n:'DK Metcalf',p:'WR1',o:90,a:28},
+  {n:'Jonnu Smith',p:'WR2',o:86,a:30},{n:'Calvin Austin III',p:'WR3',o:76,a:25},
+  {n:'Najee Harris',p:'RB',o:83,a:27},{n:'Isaac Seumalo',p:'OL',o:84,a:31},
+  {n:'Dan Moore Jr.',p:'OL',o:76,a:27},{n:'Mason Cole',p:'OL',o:78,a:29},
+  {n:'James Daniels',p:'OL',o:80,a:28},{n:'Broderick Jones',p:'OL',o:76,a:23},
+  {n:'Jalen Ramsey',p:'CB',o:94,a:31},{n:'Joey Porter Jr.',p:'CB',o:82,a:24},
+  {n:'T.J. Watt',p:'LB',o:96,a:30},{n:'Patrick Queen',p:'LB',o:84,a:26},
+  {n:'DeShon Elliott',p:'SF',o:82,a:28},{n:'Cameron Heyward',p:'DL',o:94,a:36}
+],
+// 8: Houston Texans
+8:[
+  {n:'C.J. Stroud',p:'QB',o:88,a:23},{n:'Nico Collins',p:'WR1',o:90,a:26},
+  {n:'Tank Dell',p:'WR2',o:82,a:25},{n:'Stefon Diggs',p:'WR3',o:84,a:32},
+  {n:'Joe Mixon',p:'RB',o:91,a:29},{n:'Juice Scruggs',p:'OL',o:74,a:25},
+  {n:'Kenyon Green',p:'OL',o:76,a:24},{n:'Tytus Howard',p:'OL',o:80,a:27},
+  {n:'Shaq Mason',p:'OL',o:82,a:31},{n:'Laremy Tunsil',p:'OL',o:78,a:31},
+  {n:'Derek Stingley Jr.',p:'CB',o:93,a:24},{n:'Jeff Okudah',p:'CB',o:78,a:26},
+  {n:'Azeez Al-Shaair',p:'LB',o:85,a:27},{n:'Henry To\'oTo\'o',p:'LB',o:76,a:24},
+  {n:'Jimmie Ward',p:'SF',o:82,a:33},{n:'Danielle Hunter',p:'DL',o:91,a:30}
+],
+// 9: Indianapolis Colts
+9:[
+  {n:'Daniel Jones',p:'QB',o:80,a:28},{n:'Michael Pittman Jr.',p:'WR1',o:84,a:28},
+  {n:'Josh Downs',p:'WR2',o:80,a:24},{n:'Adonai Mitchell',p:'WR3',o:76,a:23},
+  {n:'Jonathan Taylor',p:'RB',o:88,a:26},{n:'Quenton Nelson',p:'OL',o:92,a:29},
+  {n:'Braden Smith',p:'OL',o:82,a:28},{n:'Ryan Kelly',p:'OL',o:80,a:31},
+  {n:'Bernhard Raimann',p:'OL',o:76,a:27},{n:'Will Fries',p:'OL',o:74,a:27},
+  {n:'Charvarius Ward',p:'CB',o:88,a:29},{n:'JuJu Brents',p:'CB',o:74,a:24},
+  {n:'Zaire Franklin',p:'LB',o:84,a:28},{n:'E.J. Speed',p:'LB',o:80,a:30},
+  {n:'Nick Cross',p:'SF',o:78,a:24},{n:'DeForest Buckner',p:'DL',o:88,a:31}
+],
+// 10: Jacksonville Jaguars
+10:[
+  {n:'Trevor Lawrence',p:'QB',o:85,a:25},{n:'Travis Hunter',p:'WR1',o:84,a:22},
+  {n:'Brian Thomas Jr.',p:'WR2',o:82,a:23},{n:'Christian Kirk',p:'WR3',o:82,a:28},
+  {n:'Travis Etienne Jr.',p:'RB',o:86,a:26},{n:'Brandon Scherff',p:'OL',o:82,a:34},
+  {n:'Walker Little',p:'OL',o:76,a:26},{n:'Luke Fortner',p:'OL',o:76,a:27},
+  {n:'Anton Harrison',p:'OL',o:78,a:23},{n:'Ezra Cleveland',p:'OL',o:78,a:27},
+  {n:'Tyson Campbell',p:'CB',o:82,a:25},{n:'Montaric Brown',p:'CB',o:74,a:25},
+  {n:'Foyesade Oluokun',p:'LB',o:87,a:29},{n:'Devin Lloyd',p:'LB',o:85,a:26},
+  {n:'Andre Cisco',p:'SF',o:82,a:25},{n:'Josh Hines-Allen',p:'DL',o:90,a:28}
+],
+// 11: Tennessee Titans
+11:[
+  {n:'Cam Ward',p:'QB',o:78,a:23},{n:'DeAndre Hopkins',p:'WR1',o:82,a:33},
+  {n:'Tyler Boyd',p:'WR2',o:78,a:30},{n:'Treylon Burks',p:'WR3',o:76,a:25},
+  {n:'Tony Pollard',p:'RB',o:85,a:28},{n:'Peter Skoronski',p:'OL',o:80,a:24},
+  {n:'Dillon Radunz',p:'OL',o:74,a:27},{n:'Lloyd Cushenberry',p:'OL',o:76,a:27},
+  {n:'Nicholas Petit-Frere',p:'OL',o:72,a:25},{n:'Andrew Rupcich',p:'OL',o:70,a:26},
+  {n:'L\'Jarius Sneed',p:'CB',o:86,a:28},{n:'Roger McCreary',p:'CB',o:78,a:25},
+  {n:'Harold Landry',p:'LB',o:84,a:28},{n:'Kenneth Murray',p:'LB',o:78,a:27},
+  {n:'Amani Hooker',p:'SF',o:84,a:27},{n:'Jeffrey Simmons',p:'DL',o:92,a:28}
+],
+// 12: Denver Broncos
+12:[
+  {n:'Bo Nix',p:'QB',o:80,a:25},{n:'Courtland Sutton',p:'WR1',o:84,a:30},
+  {n:'Marvin Mims Jr.',p:'WR2',o:80,a:23},{n:'Troy Franklin',p:'WR3',o:74,a:23},
+  {n:'Javonte Williams',p:'RB',o:82,a:25},{n:'Quinn Meinerz',p:'OL',o:95,a:27},
+  {n:'Garett Bolles',p:'OL',o:82,a:33},{n:'Lloyd Cushenberry',p:'OL',o:78,a:27},
+  {n:'Alex Palczewski',p:'OL',o:72,a:26},{n:'Mike McGlinchey',p:'OL',o:76,a:30},
+  {n:'Patrick Surtain II',p:'CB',o:97,a:25},{n:'Jahdae Barron',p:'CB',o:76,a:23},
+  {n:'Dre Greenlaw',p:'LB',o:86,a:28},{n:'Alex Singleton',p:'LB',o:82,a:31},
+  {n:'Brandon Jones',p:'SF',o:80,a:27},{n:'Zach Allen',p:'DL',o:86,a:28}
+],
+// 13: Kansas City Chiefs
+13:[
+  {n:'Patrick Mahomes',p:'QB',o:95,a:29},{n:'Xavier Worthy',p:'WR1',o:80,a:22},
+  {n:'Hollywood Brown',p:'WR2',o:80,a:28},{n:'JuJu Smith-Schuster',p:'WR3',o:76,a:29},
+  {n:'Isiah Pacheco',p:'RB',o:86,a:26},{n:'Creed Humphrey',p:'OL',o:94,a:27},
+  {n:'Joe Thuney',p:'OL',o:88,a:33},{n:'Trey Smith',p:'OL',o:86,a:26},
+  {n:'Jawaan Taylor',p:'OL',o:80,a:27},{n:'Wanya Morris',p:'OL',o:76,a:24},
+  {n:'Trent McDuffie',p:'CB',o:94,a:25},{n:'Jaylen Watson',p:'CB',o:82,a:25},
+  {n:'Nick Bolton',p:'LB',o:86,a:26},{n:'Leo Chenal',p:'LB',o:82,a:25},
+  {n:'Justin Reid',p:'SF',o:84,a:27},{n:'Chris Jones',p:'DL',o:97,a:30}
+],
+// 14: Las Vegas Raiders
+14:[
+  {n:'Geno Smith',p:'QB',o:82,a:34},{n:'Jakobi Meyers',p:'WR1',o:82,a:28},
+  {n:'Davante Adams',p:'WR2',o:90,a:32},{n:'Tre Tucker',p:'WR3',o:76,a:24},
+  {n:'Ashton Jeanty',p:'RB',o:82,a:22},{n:'Kolton Miller',p:'OL',o:86,a:29},
+  {n:'Dylan Parham',p:'OL',o:74,a:26},{n:'Andre James',p:'OL',o:76,a:27},
+  {n:'Thayer Munford',p:'OL',o:74,a:26},{n:'DJ Glaze',p:'OL',o:72,a:23},
+  {n:'Jack Jones',p:'CB',o:78,a:26},{n:'Nate Hobbs',p:'CB',o:80,a:25},
+  {n:'Robert Spillane',p:'LB',o:80,a:29},{n:'Divine Deablo',p:'LB',o:78,a:27},
+  {n:'Tre\'von Moehrig',p:'SF',o:82,a:25},{n:'Maxx Crosby',p:'DL',o:96,a:28}
+],
+// 15: Los Angeles Chargers
+15:[
+  {n:'Justin Herbert',p:'QB',o:86,a:27},{n:'Ladd McConkey',p:'WR1',o:82,a:23},
+  {n:'Quentin Johnston',p:'WR2',o:78,a:24},{n:'Joshua Palmer',p:'WR3',o:76,a:26},
+  {n:'Omarion Hampton',p:'RB',o:78,a:22},{n:'Rashawn Slater',p:'OL',o:90,a:27},
+  {n:'Zion Johnson',p:'OL',o:82,a:26},{n:'Bradley Bozeman',p:'OL',o:78,a:30},
+  {n:'Jamaree Salyer',p:'OL',o:76,a:25},{n:'Joe Alt',p:'OL',o:82,a:22},
+  {n:'Asante Samuel Jr.',p:'CB',o:82,a:25},{n:'Kristian Fulton',p:'CB',o:80,a:27},
+  {n:'Khalil Mack',p:'LB',o:88,a:34},{n:'Daiyan Henley',p:'LB',o:78,a:25},
+  {n:'Derwin James Jr.',p:'SF',o:93,a:28},{n:'Poona Ford',p:'DL',o:80,a:30}
+],
+// 16: Dallas Cowboys
+16:[
+  {n:'Dak Prescott',p:'QB',o:84,a:32},{n:'CeeDee Lamb',p:'WR1',o:95,a:26},
+  {n:'George Pickens',p:'WR2',o:85,a:24},{n:'Jalen Tolbert',p:'WR3',o:76,a:26},
+  {n:'Ezekiel Elliott',p:'RB',o:78,a:30},{n:'Zack Martin',p:'OL',o:92,a:35},
+  {n:'Tyler Smith',p:'OL',o:82,a:24},{n:'Tyler Biadasz',p:'OL',o:80,a:28},
+  {n:'Terence Steele',p:'OL',o:78,a:28},{n:'Tyron Smith',p:'OL',o:80,a:34},
+  {n:'Trevon Diggs',p:'CB',o:84,a:27},{n:'DaRon Bland',p:'CB',o:86,a:25},
+  {n:'DeMarvion Overshown',p:'LB',o:80,a:25},{n:'Eric Kendricks',p:'LB',o:82,a:33},
+  {n:'Malik Hooker',p:'SF',o:82,a:28},{n:'Osa Odighizuwa',p:'DL',o:82,a:27}
+],
+// 17: New York Giants
+17:[
+  {n:'Jaxson Dart',p:'QB',o:74,a:22},{n:'Malik Nabers',p:'WR1',o:84,a:22},
+  {n:'Wan\'Dale Robinson',p:'WR2',o:78,a:24},{n:'Darius Slayton',p:'WR3',o:78,a:28},
+  {n:'Tyrone Tracy Jr.',p:'RB',o:78,a:24},{n:'Andrew Thomas',p:'OL',o:88,a:26},
+  {n:'Jon Runyan Jr.',p:'OL',o:78,a:28},{n:'John Michael Schmitz',p:'OL',o:76,a:24},
+  {n:'Evan Neal',p:'OL',o:74,a:25},{n:'Josh Ezeudu',p:'OL',o:72,a:25},
+  {n:'Deonte Banks',p:'CB',o:78,a:24},{n:'Adoree\' Jackson',p:'CB',o:80,a:30},
+  {n:'Abdul Carter',p:'LB',o:82,a:22},{n:'Bobby Okereke',p:'LB',o:86,a:29},
+  {n:'Xavier McKinney',p:'SF',o:82,a:26},{n:'Dexter Lawrence',p:'DL',o:97,a:28}
+],
+// 18: Philadelphia Eagles
+18:[
+  {n:'Jalen Hurts',p:'QB',o:86,a:27},{n:'A.J. Brown',p:'WR1',o:93,a:28},
+  {n:'DeVonta Smith',p:'WR2',o:89,a:26},{n:'Jahan Dotson',p:'WR3',o:76,a:25},
+  {n:'Saquon Barkley',p:'RB',o:99,a:28},{n:'Lane Johnson',p:'OL',o:99,a:35},
+  {n:'Jason Kelce',p:'OL',o:88,a:37},{n:'Landon Dickerson',p:'OL',o:86,a:27},
+  {n:'Cam Jurgens',p:'OL',o:82,a:25},{n:'Mekhi Becton',p:'OL',o:78,a:26},
+  {n:'Quinyon Mitchell',p:'CB',o:82,a:23},{n:'Darius Slay',p:'CB',o:84,a:33},
+  {n:'Zack Baun',p:'LB',o:88,a:28},{n:'Jihaad Campbell',p:'LB',o:78,a:22},
+  {n:'C.J. Gardner-Johnson',p:'SF',o:84,a:28},{n:'Jalen Carter',p:'DL',o:90,a:24}
+],
+// 19: Washington Commanders
+19:[
+  {n:'Jayden Daniels',p:'QB',o:85,a:24},{n:'Terry McLaurin',p:'WR1',o:94,a:30},
+  {n:'Deebo Samuel',p:'WR2',o:88,a:29},{n:'Dyami Brown',p:'WR3',o:76,a:26},
+  {n:'Brian Robinson Jr.',p:'RB',o:82,a:26},{n:'Laremy Tunsil',p:'OL',o:94,a:31},
+  {n:'Sam Cosmi',p:'OL',o:82,a:26},{n:'Nick Allegretti',p:'OL',o:78,a:28},
+  {n:'Andrew Wylie',p:'OL',o:76,a:30},{n:'Charles Leno Jr.',p:'OL',o:78,a:33},
+  {n:'Marshon Lattimore',p:'CB',o:84,a:29},{n:'Emmanuel Forbes',p:'CB',o:74,a:24},
+  {n:'Bobby Wagner',p:'LB',o:91,a:35},{n:'Frankie Luvu',p:'LB',o:82,a:28},
+  {n:'Jeremy Chinn',p:'SF',o:82,a:27},{n:'Jonathan Allen',p:'DL',o:88,a:30}
+],
+// 20: Chicago Bears
+20:[
+  {n:'Caleb Williams',p:'QB',o:80,a:23},{n:'Rome Odunze',p:'WR1',o:80,a:23},
+  {n:'Keenan Allen',p:'WR2',o:86,a:33},{n:'Tyler Scott',p:'WR3',o:72,a:24},
+  {n:'D\'Andre Swift',p:'RB',o:84,a:26},{n:'Joe Thuney',p:'OL',o:93,a:33},
+  {n:'Braxton Jones',p:'OL',o:76,a:26},{n:'Ryan Bates',p:'OL',o:78,a:27},
+  {n:'Darnell Wright',p:'OL',o:80,a:24},{n:'Nate Davis',p:'OL',o:76,a:28},
+  {n:'Jaylon Johnson',p:'CB',o:89,a:26},{n:'Tyrique Stevenson',p:'CB',o:78,a:24},
+  {n:'Tremaine Edmunds',p:'LB',o:86,a:27},{n:'T.J. Edwards',p:'LB',o:84,a:29},
+  {n:'Kevin Byard',p:'SF',o:84,a:31},{n:'Montez Sweat',p:'DL',o:88,a:28}
+],
+// 21: Detroit Lions
+21:[
+  {n:'Jared Goff',p:'QB',o:87,a:30},{n:'Amon-Ra St. Brown',p:'WR1',o:96,a:25},
+  {n:'Jameson Williams',p:'WR2',o:82,a:24},{n:'Tim Patrick',p:'WR3',o:76,a:31},
+  {n:'Jahmyr Gibbs',p:'RB',o:95,a:23},{n:'Penei Sewell',p:'OL',o:96,a:24},
+  {n:'Frank Ragnow',p:'OL',o:88,a:29},{n:'Graham Glasgow',p:'OL',o:78,a:32},
+  {n:'Kevin Zeitler',p:'OL',o:82,a:35},{n:'Taylor Decker',p:'OL',o:84,a:31},
+  {n:'Carlton Davis',p:'CB',o:82,a:28},{n:'Terrion Arnold',p:'CB',o:78,a:22},
+  {n:'Alex Anzalone',p:'LB',o:82,a:30},{n:'Jack Campbell',p:'LB',o:80,a:25},
+  {n:'Kerby Joseph',p:'SF',o:90,a:25},{n:'Aidan Hutchinson',p:'DL',o:93,a:25}
+],
+// 22: Green Bay Packers
+22:[
+  {n:'Jordan Love',p:'QB',o:85,a:26},{n:'Jayden Reed',p:'WR1',o:82,a:24},
+  {n:'Matthew Golden',p:'WR2',o:76,a:22},{n:'Romeo Doubs',p:'WR3',o:80,a:25},
+  {n:'Josh Jacobs',p:'RB',o:90,a:27},{n:'Elgton Jenkins',p:'OL',o:88,a:29},
+  {n:'Rasheed Walker',p:'OL',o:76,a:25},{n:'Josh Myers',p:'OL',o:78,a:27},
+  {n:'Sean Rhyan',p:'OL',o:74,a:25},{n:'Zach Tom',p:'OL',o:80,a:26},
+  {n:'Jaire Alexander',p:'CB',o:86,a:28},{n:'Keisean Nixon',p:'CB',o:78,a:27},
+  {n:'Micah Parsons',p:'LB',o:98,a:26},{n:'Quay Walker',p:'LB',o:82,a:25},
+  {n:'Xavier McKinney',p:'SF',o:93,a:26},{n:'Kenny Clark',p:'DL',o:84,a:30}
+],
+// 23: Minnesota Vikings
+23:[
+  {n:'J.J. McCarthy',p:'QB',o:78,a:22},{n:'Justin Jefferson',p:'WR1',o:99,a:26},
+  {n:'Jordan Addison',p:'WR2',o:82,a:24},{n:'Jalen Nailor',p:'WR3',o:74,a:26},
+  {n:'Aaron Jones',p:'RB',o:85,a:31},{n:'Christian Darrisaw',p:'OL',o:90,a:26},
+  {n:'Garrett Bradbury',p:'OL',o:78,a:29},{n:'Ed Ingram',p:'OL',o:76,a:26},
+  {n:'Brian O\'Neill',p:'OL',o:82,a:29},{n:'Dalton Risner',p:'OL',o:76,a:29},
+  {n:'Byron Murphy Jr.',p:'CB',o:84,a:27},{n:'Shaquill Griffin',p:'CB',o:78,a:30},
+  {n:'Andrew Van Ginkel',p:'LB',o:84,a:29},{n:'Ivan Pace Jr.',p:'LB',o:78,a:25},
+  {n:'Harrison Smith',p:'SF',o:88,a:36},{n:'Jonathan Greenard',p:'DL',o:86,a:27}
+],
+// 24: Atlanta Falcons
+24:[
+  {n:'Kirk Cousins',p:'QB',o:80,a:37},{n:'Drake London',p:'WR1',o:91,a:24},
+  {n:'Darnell Mooney',p:'WR2',o:82,a:28},{n:'Ray-Ray McCloud',p:'WR3',o:74,a:29},
+  {n:'Bijan Robinson',p:'RB',o:92,a:23},{n:'Chris Lindstrom',p:'OL',o:94,a:28},
+  {n:'Jake Matthews',p:'OL',o:80,a:33},{n:'Drew Dalman',p:'OL',o:78,a:27},
+  {n:'Kaleb McGary',p:'OL',o:80,a:29},{n:'Matthew Bergeron',p:'OL',o:76,a:24},
+  {n:'A.J. Terrell',p:'CB',o:86,a:26},{n:'Clark Phillips III',p:'CB',o:76,a:23},
+  {n:'James Pearce Jr.',p:'LB',o:78,a:22},{n:'Kaden Elliss',p:'LB',o:82,a:28},
+  {n:'Jessie Bates III',p:'SF',o:95,a:28},{n:'Grady Jarrett',p:'DL',o:84,a:31}
+],
+// 25: Carolina Panthers
+25:[
+  {n:'Bryce Young',p:'QB',o:76,a:24},{n:'Tetairoa McMillan',p:'WR1',o:80,a:22},
+  {n:'Adam Thielen',p:'WR2',o:80,a:35},{n:'Xavier Legette',p:'WR3',o:76,a:24},
+  {n:'Chuba Hubbard',p:'RB',o:82,a:26},{n:'Ikem Ekwonu',p:'OL',o:80,a:24},
+  {n:'Brady Christensen',p:'OL',o:78,a:28},{n:'Austin Corbett',p:'OL',o:76,a:30},
+  {n:'Chandler Zavala',p:'OL',o:74,a:25},{n:'Taylor Moton',p:'OL',o:80,a:30},
+  {n:'Jaycee Horn',p:'CB',o:84,a:25},{n:'Dane Jackson',p:'CB',o:76,a:28},
+  {n:'Shaq Thompson',p:'LB',o:82,a:30},{n:'Josey Jewell',p:'LB',o:80,a:29},
+  {n:'Jordan Fuller',p:'SF',o:78,a:26},{n:'Derrick Brown',p:'DL',o:95,a:26}
+],
+// 26: New Orleans Saints
+26:[
+  {n:'Tyler Shough',p:'QB',o:72,a:25},{n:'Chris Olave',p:'WR1',o:86,a:25},
+  {n:'Rashid Shaheed',p:'WR2',o:80,a:26},{n:'A.T. Perry',p:'WR3',o:74,a:24},
+  {n:'Alvin Kamara',p:'RB',o:86,a:30},{n:'Erik McCoy',p:'OL',o:84,a:28},
+  {n:'Ryan Ramczyk',p:'OL',o:82,a:30},{n:'Cesar Ruiz',p:'OL',o:78,a:26},
+  {n:'Trevor Penning',p:'OL',o:74,a:25},{n:'Landon Young',p:'OL',o:72,a:27},
+  {n:'Paulson Adebo',p:'CB',o:82,a:26},{n:'Marshon Lattimore',p:'CB',o:84,a:29},
+  {n:'Demario Davis',p:'LB',o:90,a:36},{n:'Pete Werner',p:'LB',o:80,a:27},
+  {n:'Tyrann Mathieu',p:'SF',o:82,a:33},{n:'Cameron Jordan',p:'DL',o:84,a:36}
+],
+// 27: Tampa Bay Buccaneers
+27:[
+  {n:'Baker Mayfield',p:'QB',o:86,a:30},{n:'Chris Godwin',p:'WR1',o:88,a:29},
+  {n:'Emeka Egbuka',p:'WR2',o:76,a:24},{n:'Jalen McMillan',p:'WR3',o:74,a:24},
+  {n:'Rachaad White',p:'RB',o:82,a:26},{n:'Tristan Wirfs',p:'OL',o:96,a:26},
+  {n:'Luke Goedeke',p:'OL',o:78,a:26},{n:'Robert Hainsey',p:'OL',o:76,a:27},
+  {n:'Cody Mauch',p:'OL',o:78,a:25},{n:'Graham Barton',p:'OL',o:78,a:23},
+  {n:'Jamel Dean',p:'CB',o:82,a:28},{n:'Zyon McCollum',p:'CB',o:78,a:26},
+  {n:'Lavonte David',p:'LB',o:88,a:35},{n:'SirVocea Dennis',p:'LB',o:76,a:26},
+  {n:'Antoine Winfield Jr.',p:'SF',o:91,a:26},{n:'Vita Vea',p:'DL',o:93,a:30}
+],
+// 28: Arizona Cardinals
+28:[
+  {n:'Jacoby Brissett',p:'QB',o:74,a:32},{n:'Marvin Harrison Jr.',p:'WR1',o:86,a:23},
+  {n:'Michael Wilson',p:'WR2',o:78,a:25},{n:'Greg Dortch',p:'WR3',o:76,a:27},
+  {n:'James Conner',p:'RB',o:84,a:30},{n:'Paris Johnson Jr.',p:'OL',o:80,a:23},
+  {n:'Kelvin Beachum',p:'OL',o:74,a:36},{n:'Hjalte Froholdt',p:'OL',o:76,a:28},
+  {n:'Evan Brown',p:'OL',o:76,a:29},{n:'Will Hernandez',p:'OL',o:74,a:29},
+  {n:'Sean Murphy-Bunting',p:'CB',o:78,a:28},{n:'Garrett Williams',p:'CB',o:76,a:24},
+  {n:'Josh Sweat',p:'LB',o:86,a:28},{n:'Kyzir White',p:'LB',o:80,a:28},
+  {n:'Budda Baker',p:'SF',o:92,a:29},{n:'Walter Nolen',p:'DL',o:78,a:22}
+],
+// 29: Los Angeles Rams
+29:[
+  {n:'Matthew Stafford',p:'QB',o:88,a:37},{n:'Puka Nacua',p:'WR1',o:92,a:24},
+  {n:'Davante Adams',p:'WR2',o:90,a:33},{n:'Cooper Kupp',p:'WR3',o:86,a:32},
+  {n:'Kyren Williams',p:'RB',o:84,a:25},{n:'Steve Avila',p:'OL',o:84,a:26},
+  {n:'Rob Havenstein',p:'OL',o:80,a:32},{n:'Alaric Jackson',p:'OL',o:78,a:27},
+  {n:'Jonah Jackson',p:'OL',o:80,a:28},{n:'Joe Noteboom',p:'OL',o:76,a:28},
+  {n:'Darious Williams',p:'CB',o:80,a:29},{n:'Tre\'Davious White',p:'CB',o:78,a:30},
+  {n:'Byron Young',p:'LB',o:82,a:25},{n:'Christian Rozeboom',p:'LB',o:76,a:28},
+  {n:'Quentin Lake',p:'SF',o:76,a:26},{n:'Kobie Turner',p:'DL',o:84,a:26}
+],
+// 30: San Francisco 49ers
+30:[
+  {n:'Brock Purdy',p:'QB',o:84,a:25},{n:'Mike Evans',p:'WR1',o:93,a:32},
+  {n:'Brandon Aiyuk',p:'WR2',o:88,a:27},{n:'Jauan Jennings',p:'WR3',o:80,a:28},
+  {n:'Christian McCaffrey',p:'RB',o:94,a:29},{n:'Trent Williams',p:'OL',o:97,a:37},
+  {n:'Aaron Banks',p:'OL',o:82,a:27},{n:'Jake Brendel',p:'OL',o:78,a:31},
+  {n:'Spencer Burford',p:'OL',o:76,a:25},{n:'Colton McKivitz',p:'OL',o:78,a:28},
+  {n:'Deommodore Lenoir',p:'CB',o:86,a:26},{n:'Charvarius Ward',p:'CB',o:84,a:29},
+  {n:'Fred Warner',p:'LB',o:97,a:28},{n:'Dre Greenlaw',p:'LB',o:84,a:28},
+  {n:'Talanoa Hufanga',p:'SF',o:86,a:25},{n:'Nick Bosa',p:'DL',o:95,a:28}
+],
+// 31: Seattle Seahawks
+31:[
+  {n:'Sam Darnold',p:'QB',o:82,a:28},{n:'Jaxon Smith-Njigba',p:'WR1',o:84,a:23},
+  {n:'Tyler Lockett',p:'WR2',o:82,a:33},{n:'Jake Bobo',p:'WR3',o:74,a:26},
+  {n:'Kenneth Walker III',p:'RB',o:88,a:25},{n:'Grey Zabel',p:'OL',o:78,a:24},
+  {n:'Laken Tomlinson',p:'OL',o:78,a:33},{n:'Connor Williams',p:'OL',o:78,a:28},
+  {n:'Abe Lucas',p:'OL',o:78,a:27},{n:'Charles Cross',p:'OL',o:78,a:25},
+  {n:'Devon Witherspoon',p:'CB',o:86,a:24},{n:'Riq Woolen',p:'CB',o:82,a:26},
+  {n:'DeMarcus Lawrence',p:'LB',o:84,a:33},{n:'Tyrel Dodson',p:'LB',o:80,a:27},
+  {n:'Julian Love',p:'SF',o:84,a:27},{n:'Leonard Williams',p:'DL',o:88,a:30}
+]
+};
 
 // Save state
 let S={teamIdx:0,roster:[],season:1,week:1,schedule:[],credits:50,fans:50,
@@ -287,7 +727,13 @@ function calcOVR(pos,stats){
   return Math.round(stats.spd*w.spd+stats.str*w.str+stats.arm*w.arm+stats.cat*w.cat+stats.sta*w.sta);
 }
 
-function genRoster(){
+function genRoster(teamIdx){
+  // Use real roster if available
+  if(teamIdx!==undefined&&TEAM_ROSTERS[teamIdx]){
+    const realRoster=TEAM_ROSTERS[teamIdx];
+    return realRoster.map(r=>genRealPlayer(r.n,r.p,r.o,r.a));
+  }
+  // Fallback to random generation
   const roster=[];
   roster.push(genPlayer('QB',2));
   roster.push(genPlayer('WR1',2));
@@ -309,8 +755,19 @@ function genSchedule(teamIdx){
   const sched=[];
   const others=[];
   for(let i=0;i<TEAMS.length;i++){if(i!==teamIdx)others.push(i);}
-  for(let w=0;w<13;w++){
-    const oppIdx=others[w%others.length];
+  // 17-game NFL season
+  // Prioritize division rivals (play each twice), then fill with others
+  const myDiv=TEAMS[teamIdx].div;
+  const divRivals=others.filter(i=>TEAMS[i].div===myDiv);
+  const nonDiv=others.filter(i=>TEAMS[i].div!==myDiv);
+  // 6 division games (each rival twice)
+  divRivals.forEach(r=>{
+    sched.push({oppIdx:r,result:null,myScore:0,oppScore:0});
+    sched.push({oppIdx:r,result:null,myScore:0,oppScore:0});
+  });
+  // 11 non-division games
+  for(let w=0;w<11;w++){
+    const oppIdx=nonDiv[w%nonDiv.length];
     sched.push({oppIdx,result:null,myScore:0,oppScore:0});
   }
   // Shuffle schedule
@@ -335,7 +792,7 @@ function simulateOtherGames(){
   for(let i=0;i<TEAMS.length;i++){
     if(i===S.teamIdx)continue;
     const t=S.otherTeams[i];
-    if((t.wins+t.losses)>=13)continue;
+    if((t.wins+t.losses)>=17)continue;
     // Win chance based on inverse difficulty
     const winChance=0.3+((5-TEAMS[i].diff)/5)*0.4;
     if(Math.random()<winChance)t.wins++;else t.losses++;
@@ -353,38 +810,48 @@ function genDraftClass(){
   return dc;
 }
 
+const REAL_FREE_AGENTS=[
+  {n:'Tyreek Hill',p:'WR1',o:95,a:31},
+  {n:'Russell Wilson',p:'QB',o:78,a:36},{n:'Kyler Murray',p:'QB',o:80,a:28},
+  {n:'Amari Cooper',p:'WR1',o:82,a:31},{n:'Stephon Gilmore',p:'CB',o:76,a:35},
+  {n:'Von Miller',p:'DL',o:78,a:36},{n:'Jadeveon Clowney',p:'DL',o:76,a:32},
+  {n:'Za\'Darius Smith',p:'DL',o:77,a:33},{n:'Justin Simmons',p:'SF',o:82,a:31},
+  {n:'Jordan Whitehead',p:'SF',o:75,a:28},{n:'Ja\'Whaun Bentley',p:'LB',o:74,a:28},
+  {n:'Gabe Davis',p:'WR2',o:74,a:26},{n:'Hunter Renfrow',p:'WR3',o:72,a:29},
+  {n:'Odell Beckham Jr.',p:'WR1',o:74,a:32},{n:'DeAndre Hopkins',p:'WR1',o:80,a:33},
+  {n:'Dalvin Cook',p:'RB',o:76,a:30},{n:'Austin Ekeler',p:'RB',o:78,a:30},
+  {n:'Donovan Smith',p:'OL',o:74,a:31},{n:'David Bakhtiari',p:'OL',o:76,a:33},
+  {n:'Yannick Ngakoue',p:'DL',o:75,a:30},{n:'Marcus Davenport',p:'DL',o:73,a:28},
+  {n:'Shaquill Griffin',p:'CB',o:74,a:29},{n:'Mike Hughes',p:'CB',o:71,a:27},
+  {n:'Kwon Alexander',p:'LB',o:73,a:30},{n:'Myles Jack',p:'LB',o:76,a:29},
+  {n:'Jabrill Peppers',p:'SF',o:74,a:29},{n:'Tyrann Mathieu',p:'SF',o:78,a:32},
+  {n:'Mike Gesicki',p:'WR2',o:76,a:29},{n:'Robert Woods',p:'WR3',o:72,a:33},
+  {n:'Cam Akers',p:'RB',o:70,a:26},{n:'Leonard Fournette',p:'RB',o:74,a:30}
+];
 function genFreeAgents(){
+  // Shuffle and pick 12-15 real free agents
+  const pool=[...REAL_FREE_AGENTS];
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const count=12+Math.floor(Math.random()*4);
   const fa=[];
-  // Guarantee some good defensive free agents (tier 1-2)
-  const defPositions=['CB','LB','SF','DL'];
-  for(let i=0;i<4;i++){
-    const pos=defPositions[i];
-    const tier=1+Math.floor(Math.random()*2);
-    fa.push(genPlayer(pos,tier));
-  }
-  // Fill rest with mixed positions
-  const positions=['QB','WR1','WR2','WR3','RB','OL','CB','LB','SF','DL'];
-  const count=5+Math.floor(Math.random()*5); // 5-9 more players
-  for(let i=0;i<count;i++){
-    const pos=positions[Math.floor(Math.random()*positions.length)];
-    const tier=2+Math.floor(Math.random()*3);
-    fa.push(genPlayer(pos,tier));
+  for(let i=0;i<Math.min(count,pool.length);i++){
+    fa.push(genRealPlayer(pool[i].n,pool[i].p,pool[i].o,pool[i].a));
   }
   S.freeAgents=fa;
 }
 
 function saveGame(){
-  localStorage.setItem('retroBowlSave',JSON.stringify(S));
+  localStorage.setItem('madden26Save',JSON.stringify(S));
 }
 function loadGame(){
-  const d=localStorage.getItem('retroBowlSave');
+  const d=localStorage.getItem('madden26Save');
   if(d){S=JSON.parse(d);if(!S.freeAgents)S.freeAgents=[];if(S.tutorialDone===undefined)S.tutorialDone=false;return true;}
   return false;
 }
 
 function newGame(teamIdx){
   S.teamIdx=teamIdx;
-  S.roster=genRoster();
+  S.roster=genRoster(teamIdx);
   S.season=1;S.week=1;
   S.schedule=genSchedule(teamIdx);
   S.credits=50;S.fans=50;
@@ -436,7 +903,12 @@ function setGameConstants(){
 function renderTeamSelect(){
   const el=document.getElementById('teamSelectContent');
   let h='<div class="team-grid">';
+  let lastDiv='';
   TEAMS.forEach((t,i)=>{
+    if(t.div!==lastDiv){
+      lastDiv=t.div;
+      h+=`<div class="div-header">${t.div}</div>`;
+    }
     h+=`<div class="team-btn" style="background:${t.c1};border-color:${t.c2}" onclick="selectTeam(${i})">
       <div class="city">${t.city}</div>${t.name}
       <div style="font-size:9px;opacity:0.6;margin-top:2px;">${'*'.repeat(t.diff)} difficulty</div>
@@ -470,7 +942,7 @@ function renderHome(){
     const rn=roundNames[S.playoffRound]||'Championship';
     h+=`<div style="margin:10px 0;font-size:14px;color:#f0c040">PLAYOFFS - ${rn} Round</div>`;
     h+=`<button class="btn btn-green" style="font-size:18px;padding:14px 40px;margin:10px" onclick="startGame()">PLAY PLAYOFF GAME</button>`;
-  } else if(S.week<=13){
+  } else if(S.week<=17){
     const opp=TEAMS[S.schedule[S.week-1].oppIdx];
     h+=`<div style="margin:10px 0;font-size:14px">Week ${S.week} vs <span style="color:${opp.c1};font-weight:bold">${opp.city} ${opp.name}</span></div>`;
     // Check for injured starters
@@ -494,7 +966,7 @@ function renderHome(){
   h+='</div>';
   h+='<div style="text-align:center;margin-top:10px">';
   h+='<button class="btn" style="font-size:12px;padding:8px 18px;background:#8e44ad;border-color:#9b59b6" onclick="startTutorial()">TUTORIAL</button> ';
-  h+='<button class="btn btn-red" style="font-size:11px;padding:6px 14px" onclick="if(confirm(\'Start a new game? Current save will be lost.\')){localStorage.removeItem(\'retroBowlSave\');location.reload();}">NEW GAME</button>';
+  h+='<button class="btn btn-red" style="font-size:11px;padding:6px 14px" onclick="if(confirm(\'Start a new game? Current save will be lost.\')){localStorage.removeItem(\'madden26Save\');location.reload();}">NEW GAME</button>';
   h+='</div>';
   el.innerHTML=h;
 }
@@ -613,11 +1085,18 @@ function signFreeAgent(idx){
   S.credits-=p.salary;
   S.roster.push(p);
   S.freeAgents.splice(idx,1);
-  // Add a replacement free agent
-  const positions=['QB','WR1','WR2','WR3','RB','OL','CB','LB','SF','DL'];
-  const pos=positions[Math.floor(Math.random()*positions.length)];
-  const tier=2+Math.floor(Math.random()*3);
-  S.freeAgents.push(genPlayer(pos,tier));
+  // Add a replacement free agent from real pool if available
+  const usedNames=S.freeAgents.map(f=>f.name).concat(S.roster.map(r=>r.name));
+  const avail=REAL_FREE_AGENTS.filter(r=>!usedNames.includes(r.n));
+  if(avail.length>0){
+    const pick=avail[Math.floor(Math.random()*avail.length)];
+    S.freeAgents.push(genRealPlayer(pick.n,pick.p,pick.o,pick.a));
+  } else {
+    const positions=['QB','WR1','WR2','WR3','RB','OL','CB','LB','SF','DL'];
+    const pos=positions[Math.floor(Math.random()*positions.length)];
+    const tier=2+Math.floor(Math.random()*3);
+    S.freeAgents.push(genPlayer(pos,tier));
+  }
   saveGame();
   renderFreeAgents();
 }
@@ -842,8 +1321,8 @@ function onGameOver(hs,as){
     simulateOtherGames();
     S.week++;
     // Check end of regular season
-    if(S.week>13){
-      if(S.wins>=7){
+    if(S.week>17){
+      if(S.wins>=9){
         S.isPlayoffs=true;
         S.playoffRound=0;
       }
@@ -858,7 +1337,7 @@ function renderPostGame(won,hs,as,earned,injuries){
   const el=document.getElementById('postGameContent');
   const t=TEAMS[S.teamIdx];
   let oppAbbr='CPU';
-  if(!S.isPlayoffs&&S.week<=14&&S.schedule.length>0&&S.week>=2){
+  if(!S.isPlayoffs&&S.week<=18&&S.schedule.length>0&&S.week>=2){
     oppAbbr=TEAMS[S.schedule[S.week-2].oppIdx].abbr;
   }
   const gs=G.stats;
@@ -893,7 +1372,7 @@ function renderPostGame(won,hs,as,earned,injuries){
     h+=`<div style="font-size:24px;color:#f0c040;margin:10px 0;font-weight:bold">CHAMPION!</div>`;
     h+=`<div class="secondary">You won the championship!</div>`;
   }
-  if(!S.isPlayoffs&&S.week>13&&S.wins<7){
+  if(!S.isPlayoffs&&S.week>17&&S.wins<9){
     h+=`<div class="secondary" style="margin:8px 0">Season over - did not qualify for playoffs.</div>`;
   }
   h+=`<button class="btn btn-green" style="font-size:16px;padding:12px 30px;margin-top:16px" onclick="continueAfterGame()">CONTINUE</button>`;
@@ -905,7 +1384,7 @@ function continueAfterGame(){
   if(S.isPlayoffs){
     // More playoff games
     showScreen('home');renderHome();
-  } else if(S.week>13||S.playoffRound>=3){
+  } else if(S.week>17||S.playoffRound>=3){
     // Season over - go to draft
     showScreen('home');renderHome();
   } else {
@@ -922,7 +1401,7 @@ function startGame(){
   let oppDiff=3;
   if(S.isPlayoffs){
     oppDiff=3+S.playoffRound; // playoffs get harder
-  } else if(S.week<=13){
+  } else if(S.week<=17){
     oppDiff=TEAMS[S.schedule[S.week-1].oppIdx].diff;
   }
   currentOppDiff=oppDiff;
@@ -969,7 +1448,8 @@ const WORLD_BOT = H - YPX;
 let camWY = 300;
 
 // === COLORS ===
-const FG1 = '#2d8a4e', FG2 = '#278a45', EZA = '#1a5276', EZB = '#922b21';
+const FG1 = '#2d8a4e', FG2 = '#278a45';
+let EZA = '#1a5276', EZB = '#922b21';
 let HCOL = '#2980b9', ACOL = '#c0392b';
 const OLCOL = '#1a6fa0';
 
@@ -1171,8 +1651,18 @@ function initGame(){
   const team=TEAMS[S.teamIdx];
   HCOL=team.c1;
   const oppIdx=S.isPlayoffs?Math.floor(Math.random()*TEAMS.length):
-    (S.week<=13?S.schedule[S.week-1].oppIdx:0);
+    (S.week<=17?S.schedule[S.week-1].oppIdx:0);
   if(oppIdx!==S.teamIdx){ACOL=TEAMS[oppIdx].c1;}else{ACOL='#c0392b';}
+  // Set endzone colors to darken team colors
+  function darkenHex(hex,amount){
+    let c=hex.replace('#','');if(c.length===3)c=c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    const r=Math.max(0,parseInt(c.substr(0,2),16)-amount);
+    const g=Math.max(0,parseInt(c.substr(2,2),16)-amount);
+    const b=Math.max(0,parseInt(c.substr(4,2),16)-amount);
+    return '#'+r.toString(16).padStart(2,'0')+g.toString(16).padStart(2,'0')+b.toString(16).padStart(2,'0');
+  }
+  EZB=darkenHex(HCOL,40); // Home endzone (bottom)
+  EZA=darkenHex(ACOL,40); // Away endzone (top)
 
   G={hs:0,as:0,q:1,mq:4,pos:'h',dn:1,ytg:10,los:25,ph:'title',
      clk:0,st:0,pr:'',ppq:0,target:null,carrier:null,
@@ -1198,6 +1688,10 @@ function initGame(){
      halftimeTimer:0,
      // Tutorial
      tutStep:0,tutWait:0,tutDone:false,
+     // Camera pan
+     camPan:0,camPanMax:0,camPanLOS:25,
+     // TD celebration
+     celebTimer:0,celebPlayers:[],
      // Stats
      stats:{
        h:{passYds:0,rushYds:0,passTD:0,rushTD:0,int:0,sacks:0,comp:0,att:0},
@@ -1237,14 +1731,19 @@ function drawField(){
     X.lineTo(pFR.x,pFR.y);X.lineTo(pFL.x,pFL.y);
     X.closePath();X.fill();
   }
+  // Endzone team names
+  const homeTeam=TEAMS[S.teamIdx];
+  const oppTeamIdx=S.isPlayoffs?Math.floor(Math.random()*TEAMS.length):
+    (S.week<=17&&S.schedule.length>0?S.schedule[Math.min(S.week-1,S.schedule.length-1)].oppIdx:0);
+  const awayTeam=TEAMS[oppTeamIdx]||TEAMS[0];
   const ezTopWY=y2y(95);const pEZT=project(W/2,ezTopWY);
   const ezFs=Math.max(7,Math.round(18*pEZT.s));
   X.fillStyle='rgba(255,255,255,0.3)';X.font=`bold ${ezFs}px sans-serif`;X.textAlign='center';
-  X.fillText('E N D Z O N E',pEZT.x,pEZT.y);
+  X.fillText(awayTeam.name.toUpperCase(),pEZT.x,pEZT.y);
   const ezBotWY=y2y(5);const pEZB=project(W/2,ezBotWY);
   const ezBFs=Math.max(8,Math.round(18*pEZB.s));
   X.font=`bold ${ezBFs}px sans-serif`;
-  X.fillText('E N D Z O N E',pEZB.x,pEZB.y);
+  X.fillText(homeTeam.name.toUpperCase(),pEZB.x,pEZB.y);
   X.strokeStyle='rgba(255,255,255,0.5)';X.lineWidth=2;
   const slBotL=project(0,WORLD_BOT+10),slBotR=project(W,WORLD_BOT+10);
   const slTopL=project(0,WORLD_TOP-10),slTopR=project(W,WORLD_TOP-10);
@@ -1358,9 +1857,13 @@ function showPM(){
     }
   } else {
     t.textContent='DEFENSE';pm.appendChild(t);
-    DPLAYS.forEach((p,i)=>{const b=document.createElement('button');
-      b.textContent=p.name;b.style.background=p.color;
-      b.addEventListener('click',()=>selDef(i));pm.appendChild(b);});
+    DPLAYS.forEach((p,i)=>{
+      const b=document.createElement('button');
+      b.style.background=p.color;
+      const diag=DEF_DIAGRAMS[i];
+      b.innerHTML=`<div class="play-diagram">${diag?diag.svg:''}</div><div class="play-info"><div class="play-name">${p.name}</div><div class="play-desc">${diag?diag.desc:''}</div></div>`;
+      b.addEventListener('click',()=>selDef(i));pm.appendChild(b);
+    });
     if(G.timeoutsH>0){
       const tb=document.createElement('button');tb.textContent=`TIMEOUT (${G.timeoutsH})`;
       tb.style.background='#555';tb.style.fontSize='11px';tb.style.padding='5px 10px';
@@ -1376,10 +1879,27 @@ function showPMPlays(){
   showPMPlaysInner(pm);
   pm.classList.add('show');
 }
+const PLAY_DIAGRAMS=[
+  {svg:'<svg viewBox="0 0 50 36"><circle cx="25" cy="30" r="3" fill="#fff"/><circle cx="10" cy="18" r="2.5" fill="#f0c040"/><circle cx="40" cy="18" r="2.5" fill="#f0c040"/><circle cx="18" cy="22" r="2.5" fill="#f0c040"/><line x1="10" y1="18" x2="15" y2="8" stroke="#3498db" stroke-width="1.5" stroke-dasharray="2"/><line x1="40" y1="18" x2="45" y2="12" stroke="#3498db" stroke-width="1.5" stroke-dasharray="2"/><line x1="18" y1="22" x2="25" y2="28" stroke="#3498db" stroke-width="1.5" stroke-dasharray="2"/></svg>',desc:'Quick slants & outs'},
+  {svg:'<svg viewBox="0 0 50 36"><circle cx="25" cy="30" r="3" fill="#fff"/><circle cx="8" cy="18" r="2.5" fill="#f0c040"/><circle cx="42" cy="18" r="2.5" fill="#f0c040"/><circle cx="20" cy="22" r="2.5" fill="#f0c040"/><line x1="8" y1="18" x2="8" y2="4" stroke="#9b59b6" stroke-width="1.5" stroke-dasharray="2"/><line x1="42" y1="18" x2="35" y2="4" stroke="#9b59b6" stroke-width="1.5" stroke-dasharray="2"/><line x1="20" y1="22" x2="14" y2="8" stroke="#9b59b6" stroke-width="1.5" stroke-dasharray="2"/></svg>',desc:'Streaks & deep posts'},
+  {svg:'<svg viewBox="0 0 50 36"><circle cx="25" cy="30" r="3" fill="#fff"/><circle cx="10" cy="18" r="2.5" fill="#f0c040"/><circle cx="40" cy="18" r="2.5" fill="#f0c040"/><circle cx="25" cy="20" r="2.5" fill="#f0c040"/><line x1="10" y1="18" x2="4" y2="10" stroke="#e67e22" stroke-width="1.5" stroke-dasharray="2"/><line x1="40" y1="18" x2="40" y2="10" stroke="#e67e22" stroke-width="1.5" stroke-dasharray="2" /><line x1="25" y1="20" x2="32" y2="8" stroke="#e67e22" stroke-width="1.5" stroke-dasharray="2"/></svg>',desc:'Spread formation'},
+  {svg:'<svg viewBox="0 0 50 36"><circle cx="25" cy="30" r="3" fill="#fff"/><circle cx="25" cy="34" r="2.5" fill="#2ecc71"/><rect x="17" y="26" width="3" height="5" rx="1" fill="#888"/><rect x="21" y="26" width="3" height="5" rx="1" fill="#888"/><rect x="26" y="26" width="3" height="5" rx="1" fill="#888"/><rect x="30" y="26" width="3" height="5" rx="1" fill="#888"/><line x1="25" y1="34" x2="25" y2="18" stroke="#2ecc71" stroke-width="2" stroke-dasharray="2"/></svg>',desc:'Run up the middle'},
+  {svg:'<svg viewBox="0 0 50 36"><circle cx="25" cy="28" r="3" fill="#fff"/><line x1="25" y1="28" x2="20" y2="12" stroke="#f39c12" stroke-width="2" stroke-dasharray="2"/><circle cx="10" cy="18" r="2.5" fill="#f0c040"/><circle cx="40" cy="18" r="2.5" fill="#f0c040"/><line x1="10" y1="18" x2="10" y2="8" stroke="#f39c12" stroke-width="1" stroke-dasharray="2"/><line x1="40" y1="18" x2="35" y2="10" stroke="#f39c12" stroke-width="1" stroke-dasharray="2"/></svg>',desc:'QB runs the ball'},
+];
+const DEF_DIAGRAMS=[
+  {svg:'<svg viewBox="0 0 50 36"><circle cx="10" cy="12" r="2.5" fill="#e74c3c"/><circle cx="40" cy="12" r="2.5" fill="#e74c3c"/><circle cx="20" cy="20" r="2.5" fill="#e74c3c"/><circle cx="30" cy="20" r="2.5" fill="#e74c3c"/><circle cx="25" cy="8" r="2.5" fill="#e74c3c"/><line x1="10" y1="12" x2="10" y2="28" stroke="#e74c3c" stroke-width="1" stroke-dasharray="2"/><line x1="40" y1="12" x2="40" y2="28" stroke="#e74c3c" stroke-width="1" stroke-dasharray="2"/></svg>',desc:'Shadow each receiver'},
+  {svg:'<svg viewBox="0 0 50 36"><circle cx="10" cy="14" r="2.5" fill="#c0392b"/><circle cx="40" cy="14" r="2.5" fill="#c0392b"/><circle cx="20" cy="20" r="2.5" fill="#c0392b"/><circle cx="30" cy="20" r="2.5" fill="#c0392b"/><circle cx="25" cy="8" r="2.5" fill="#c0392b"/><rect x="5" y="10" width="14" height="12" rx="2" fill="none" stroke="#c0392b" stroke-width="0.8" stroke-dasharray="2"/><rect x="31" y="10" width="14" height="12" rx="2" fill="none" stroke="#c0392b" stroke-width="0.8" stroke-dasharray="2"/></svg>',desc:'Patrol assigned zones'},
+  {svg:'<svg viewBox="0 0 50 36"><circle cx="10" cy="14" r="2.5" fill="#8e44ad"/><circle cx="40" cy="14" r="2.5" fill="#8e44ad"/><circle cx="18" cy="22" r="2.5" fill="#8e44ad"/><circle cx="32" cy="22" r="2.5" fill="#8e44ad"/><circle cx="25" cy="8" r="2.5" fill="#8e44ad"/><line x1="18" y1="22" x2="25" y2="32" stroke="#ff0" stroke-width="1.5"/><line x1="32" y1="22" x2="25" y2="32" stroke="#ff0" stroke-width="1.5"/></svg>',desc:'Send extra rushers'},
+  {svg:'<svg viewBox="0 0 50 36"><circle cx="10" cy="8" r="2.5" fill="#2c3e50"/><circle cx="40" cy="8" r="2.5" fill="#2c3e50"/><circle cx="20" cy="14" r="2.5" fill="#2c3e50"/><circle cx="30" cy="14" r="2.5" fill="#2c3e50"/><circle cx="25" cy="6" r="2.5" fill="#2c3e50"/><rect x="3" y="4" width="44" height="18" rx="3" fill="none" stroke="#2c3e50" stroke-width="0.8" stroke-dasharray="2"/></svg>',desc:'Guard against the deep ball'},
+];
 function showPMPlaysInner(el){
-  OPLAYS.forEach((p,i)=>{const b=document.createElement('button');
-    b.textContent=p.name;b.style.background=p.color;
-    b.addEventListener('click',()=>selOff(i));el.appendChild(b);});
+  OPLAYS.forEach((p,i)=>{
+    const b=document.createElement('button');
+    b.style.background=p.color;
+    const diag=PLAY_DIAGRAMS[i];
+    b.innerHTML=`<div class="play-diagram">${diag?diag.svg:''}</div><div class="play-info"><div class="play-name">${p.name}</div><div class="play-desc">${diag?diag.desc:''}</div></div>`;
+    b.addEventListener('click',()=>selOff(i));el.appendChild(b);
+  });
 }
 
 function selOff(i){
@@ -1387,6 +1907,7 @@ function selOff(i){
   pm.classList.remove('show');
   setupOff();setupAIDef();assignDef();
   G.ph='pre';G.clk=0;G.clockStopped=false;
+  G.camPan=30;G.camPanMax=30;G.camPanLOS=G.los;
   ball={x:W/2,y:y2y(G.los),air:false,sx:0,sy:0,tx:0,ty:0,tt:0,t:0,arc:0};
   showDefenseRoll(curDP,()=>{if(G.ph==='pre'){G.ph=curOP.type==='run'?'run':curOP.type==='scramble'?'run':'live';G.clk=0;}});
 }
@@ -1394,6 +1915,7 @@ function selDef(i){
   curDP=DPLAYS[i];pm.classList.remove('show');
   setupAIOff();setupPlayerDef();assignPlayerDef();
   G.ph='pre';G.clk=0;G.aiTF=50+Math.floor(Math.random()*25);G.clockStopped=false;
+  G.camPan=30;G.camPanMax=30;G.camPanLOS=G.los;
   ball={x:W/2,y:y2y(G.los),air:false,sx:0,sy:0,tx:0,ty:0,tt:0,t:0,arc:0};
   showDefenseConfirm(curDP,()=>{if(G.ph==='pre'){G.ph='dl';G.clk=0;}});
 }
@@ -1506,7 +2028,9 @@ function updLive(){
   updOLBlock('h','a');
   updAIDef(qb);
   if(qb&&qb.hb){for(const d of P.filter(p=>p.team==='a'&&p.role==='dl')){
-    if(Math.hypot(d.x-qb.x,d.y-qb.y)<SACK_R){mkP(qb.x,qb.y,'#e74c3c',15);G.tackleAnim=20;G.tackleRunner=qb;G.tackleDef=d;G.pendingEndPlay='sack';G.ph='tackle';return;}}}
+    if(Math.hypot(d.x-qb.x,d.y-qb.y)<SACK_R){mkP(qb.x,qb.y,'#e74c3c',15);
+      hitStickEffect(qb.x,qb.y);showCommentary(`${getQBName()} brought down for a SACK!`,2500);
+      G.tackleAnim=20;G.tackleRunner=qb;G.tackleDef=d;G.pendingEndPlay='sack';G.ph='tackle';return;}}}
   if(G.clk>200&&qb&&qb.hb){
     const recs=P.filter(p=>p.team==='h'&&p.role==='wr');
     if(recs.length>0){const t=recs[Math.floor(Math.random()*recs.length)];
@@ -1547,6 +2071,7 @@ function resolveCatch(offT,defT){
       const ic=dtgt>gCATCH_R?0.75:dd<dtgt?0.35:0.12;
       if(Math.random()<ic){mkP(ball.tx,ball.ty,'#e74c3c',20);showMsg('INTERCEPTED!');
         G.stats[offT].int++;
+        showCommentary(offT==='h'?'Pass picked off! Turnover!':'INTERCEPTED! Great read by the defender!',2500);
         endPlay(offT==='h'?'int':'dInt');return;}
     }
   }
@@ -1556,9 +2081,11 @@ function resolveCatch(offT,defT){
     G.carrier=tgt;G.stam=gSTAM_MAX;G.jcd=0;
     G.catchAnim=10;G.catchPlayer=tgt;
     mkP(tgt.x,tgt.y,'#2ecc71',12);
+    if(offT==='h')showCommentary(`Caught by ${getWRName()}! He's got room to run!`,2000);
     G.ph=offT==='h'?'rac':'drac';
   } else {
     ball.air=false;mkP(ball.tx,ball.ty,'#95a5a6',10);showMsg('INCOMPLETE');
+    showCommentary('Pass falls incomplete.',1800);
     G.clockStopped=true;
     endPlay(offT==='h'?'inc':'dInc');
   }
@@ -1580,12 +2107,17 @@ function updRAC(){
   if(G.jcd===0&&keys['e']){c.x+=JUKE_DIST;G.jcd=JUKE_CD;mkP(c.x-JUKE_DIST,c.y,'#f1c40f',5);}
   c.x=clamp(c.x,20,W-20);c.y=clamp(c.y,YPX,H-YPX);
   ball.x=c.x;ball.y=c.y;ball.air=false;
-  if(c.y<=YPX){mkP(c.x,c.y,'#f1c40f',30);showMsg('TOUCHDOWN!',2000);endPlay('td');return;}
+  if(c.y<=YPX){mkP(c.x,c.y,'#f1c40f',30);showMsg('TOUCHDOWN!',2000);
+    c._celeb=true;G.celebPlayers=[c];G.celebTimer=60;
+    showCommentary(`${getCarrierName()} takes it to the house! TOUCHDOWN ${TEAMS[S.teamIdx].city}!`,3000);
+    endPlay('td');return;}
   P.filter(p=>p.team==='a').forEach(d=>{
     const ddx=c.x-d.x,ddy=c.y-d.y,dd=Math.hypot(ddx,ddy);
     const cs=d.role==='dl'?2.2:d.role==='lb'?2.7:2.9;
     if(dd>5){d.x+=ddx/dd*cs;d.y+=ddy/dd*cs;}
-    if(dd<TACKLE_R){if(!checkFumble(c,'h')){mkP(c.x,c.y,'#e74c3c',15);G.tackleAnim=20;G.tackleRunner=c;G.tackleDef=d;G.pendingEndPlay='tkl';G.ph='tackle';}return;}
+    if(dd<TACKLE_R){if(!checkFumble(c,'h')){mkP(c.x,c.y,'#e74c3c',15);
+      hitStickEffect(c.x,c.y);
+      G.tackleAnim=20;G.tackleRunner=c;G.tackleDef=d;G.pendingEndPlay='tkl';G.ph='tackle';}return;}
   });
   if(G.sprint&&Math.random()<0.3)parts.push({x:c.x,y:c.y+8,vx:(Math.random()-0.5),vy:Math.random()*2,l:0.4,d:0.05,s:3,c:'rgba(255,255,255,0.3)'});
 }
@@ -1622,9 +2154,14 @@ function updRun(){
     const ddx=c.x-d.x,ddy=c.y-d.y,dd=Math.hypot(ddx,ddy);
     const cs=d.role==='dl'?2.2:d.role==='lb'?2.7:2.9;
     if(dd>5){d.x+=ddx/dd*cs;d.y+=ddy/dd*cs;}
-    if(dd<TACKLE_R){if(!checkFumble(c,'h')){mkP(c.x,c.y,'#e74c3c',15);G.tackleAnim=20;G.tackleRunner=c;G.tackleDef=d;G.pendingEndPlay='tkl';G.ph='tackle';}return;}
+    if(dd<TACKLE_R){if(!checkFumble(c,'h')){mkP(c.x,c.y,'#e74c3c',15);
+      hitStickEffect(c.x,c.y);
+      G.tackleAnim=20;G.tackleRunner=c;G.tackleDef=d;G.pendingEndPlay='tkl';G.ph='tackle';}return;}
   });
-  if(c.y<=YPX){mkP(c.x,c.y,'#f1c40f',30);showMsg('TOUCHDOWN!',2000);endPlay('td');return;}
+  if(c.y<=YPX){mkP(c.x,c.y,'#f1c40f',30);showMsg('TOUCHDOWN!',2000);
+    c._celeb=true;G.celebPlayers=[c];G.celebTimer=60;
+    showCommentary(`${getCarrierName()} punches it in! TOUCHDOWN!`,3000);
+    endPlay('td');return;}
   if(G.sprint&&Math.random()<0.3)parts.push({x:c.x,y:c.y+8,vx:(Math.random()-0.5),vy:Math.random()*2,l:0.4,d:0.05,s:3,c:'rgba(255,255,255,0.3)'});
 }
 
@@ -1689,13 +2226,14 @@ function updDL(){
   updOLBlock('a','h');
   updPlayerDefAI();
   if(aq&&aq.hb){for(const d of P.filter(p=>p.team==='h'&&p.role==='dl')){
-    if(Math.hypot(d.x-aq.x,d.y-aq.y)<SACK_R){mkP(aq.x,aq.y,'#2ecc71',15);showMsg('SACK!');endPlay('dSack');return;}}}
+    if(Math.hypot(d.x-aq.x,d.y-aq.y)<SACK_R){mkP(aq.x,aq.y,'#2ecc71',15);hitStickEffect(aq.x,aq.y);showMsg('SACK!');
+      showCommentary('The quarterback is SACKED! Huge defensive play!',2500);endPlay('dSack');return;}}}
   if(G.clk>=G.aiTF&&aq&&aq.hb&&!ball.air){aiThrow(aq);}
   if(G.clk>G.aiTF+50&&aq&&aq.hb){
     aq.y+=2.2;aq.x+=(W/2-aq.x)*0.03;ball.x=aq.x;ball.y=aq.y;
-    if(aq.y>=H-YPX){showMsg('THEY SCORED!');endPlay('dTD');return;}
+    if(aq.y>=H-YPX){showMsg('THEY SCORED!');showCommentary('They punch it in for a touchdown.',2500);endPlay('dTD');return;}
     for(const d of P.filter(p=>p.team==='h')){
-      if(Math.hypot(d.x-aq.x,d.y-aq.y)<TACKLE_R){showMsg('QB TACKLED!');endPlay('dTkl');return;}}
+      if(Math.hypot(d.x-aq.x,d.y-aq.y)<TACKLE_R){hitStickEffect(aq.x,aq.y);showMsg('QB TACKLED!');endPlay('dTkl');return;}}
   }
 }
 
@@ -1746,13 +2284,14 @@ function updDRAC(){
   G.clk++;const c=G.carrier;if(!c)return;
   c.y+=3;c.x+=(W/2-c.x)*0.02;
   c.x=clamp(c.x,15,W-15);ball.x=c.x;ball.y=c.y;ball.air=false;
-  if(c.y>=H-YPX){mkP(c.x,c.y,'#e74c3c',30);showMsg('THEY SCORED!',2000);endPlay('dTD');return;}
+  if(c.y>=H-YPX){mkP(c.x,c.y,'#e74c3c',30);showMsg('THEY SCORED!',2000);
+    showCommentary('They punch it in for a touchdown.',2500);endPlay('dTD');return;}
   P.filter(p=>p.team==='h').forEach(d=>{
     const rspd=d.rs?d.rs.spd:55;
     const spdMul=0.7+rspd/140;
     const dx=c.x-d.x,dy=c.y-d.y,dd=Math.hypot(dx,dy);
     if(dd>5){d.x+=dx/dd*2.7*spdMul;d.y+=dy/dd*2.7*spdMul;}
-    if(dd<TACKLE_R){if(!checkFumble(c,'a')){mkP(c.x,c.y,'#2ecc71',15);endPlay('dTkl');}return;}
+    if(dd<TACKLE_R){if(!checkFumble(c,'a')){mkP(c.x,c.y,'#2ecc71',15);hitStickEffect(c.x,c.y);endPlay('dTkl');}return;}
   });
 }
 
@@ -1814,10 +2353,11 @@ function endPlay(r){
         if(c){const yg=Math.max(0,Math.round((y2y(G.los)-c.y)/(H/100)));
           if(isPass)G.stats.h.passYds+=yg;else G.stats.h.rushYds+=yg;
           G.los=Math.min(99,G.los+yg);G.ytg-=yg;
-          if(G.ytg<=0){G.dn=1;G.ytg=10;showMsg(`1ST DOWN! +${yg} yds`);}
+          if(G.ytg<=0){G.dn=1;G.ytg=10;showMsg(`1ST DOWN! +${yg} yds`);
+            showCommentary(`Great gain of ${yg} yards. First down ${TEAMS[S.teamIdx].city}!`,2200);}
           else {G.dn++;showMsg(yg>0?`TACKLED +${yg} yds`:'NO GAIN');}
         } else G.dn++;
-        if(G.dn>4){showMsg('TURNOVER ON DOWNS');G.ph='pd';G.st=70;}
+        if(G.dn>4){showMsg('TURNOVER ON DOWNS');showCommentary('Turnover on downs! Big stop by the defense.',2500);G.ph='pd';G.st=70;}
         else {G.ph='pd';G.st=50;}break;}
       case 'sack':G.stats.h.sacks++;G.los=Math.max(1,G.los-7);G.dn++;showMsg('SACKED! -7 yds');
         G.ph='pd';G.st=G.dn>4?70:50;if(G.dn>4)showMsg('TURNOVER ON DOWNS');break;
@@ -2003,6 +2543,9 @@ function updKick(){
     if(G.kickResultTimer>90){
       if(G.kickGood){
         G.hs+=3;showMsg('FIELD GOAL!',1500);
+        showCommentary(`The ${G.kickDist}-yard field goal is GOOD!`,2500);
+      } else {
+        showCommentary('No good! The kick is wide.',2000);
       }
       G.ph='pd';G.st=70;
       // After FG: other team gets ball
@@ -2098,7 +2641,7 @@ function drawMatchup(){
   X.fillStyle='rgba(0,0,0,0.9)';X.fillRect(0,0,W,H);
   const t=TEAMS[S.teamIdx];
   let oppIdx=S.isPlayoffs?Math.floor(Math.random()*TEAMS.length):
-    (S.week<=13?S.schedule[S.week-1].oppIdx:0);
+    (S.week<=17?S.schedule[S.week-1].oppIdx:0);
   const opp=TEAMS[oppIdx];
   // Left team
   X.fillStyle=t.c1;X.fillRect(0,100,380,400);
@@ -2294,36 +2837,54 @@ function darkenCol(hex,amt){
   return `rgb(${r},${g},${b})`;
 }
 function drawHuman(pp,p){
-  const s=pp.s;const u=Math.max(2,6*s);
+  const s=pp.s;const u=Math.max(2,7*s);
   const cx=pp.x;
   let baseY=pp.y;
   // Tackle falling effect
-  if(p===G.tackleRunner&&G.tackleAnim>0){baseY+=(20-G.tackleAnim)*1.5;}
+  if(p===G.tackleRunner&&G.tackleAnim>0){
+    const fall=(20-G.tackleAnim)/20;
+    baseY+=fall*u*3;
+    X.save();X.translate(cx,baseY);X.rotate(fall*0.8);X.translate(-cx,-baseY);
+  }
   // If too small, just draw a dot
   if(s<0.22){
-    X.fillStyle=p.col;X.beginPath();X.arc(cx,baseY,Math.max(2,3*s),0,Math.PI*2);X.fill();return;
+    X.fillStyle=p.col;X.beginPath();X.arc(cx,baseY,Math.max(2,4*s),0,Math.PI*2);X.fill();
+    if(p===G.tackleRunner&&G.tackleAnim>0)X.restore();return;
   }
   const col=p.col;const dark=darkenCol(col,60);const skin='#D4A574';
+  const c2=p.team==='h'?TEAMS[S.teamIdx].c2:(ACOL==='#c0392b'?'#fff':darkenCol(ACOL,30));
   // Shadow on ground
-  X.fillStyle='rgba(0,0,0,0.22)';X.beginPath();
-  X.ellipse(cx,baseY+u*0.4,u*1.1,u*0.35,0,0,Math.PI*2);X.fill();
-  // Legs (animated stride)
-  const legW=u*0.42,legH=u*1.2;const legGap=u*0.35;
-  const legTop=baseY-u*0.5;
+  X.fillStyle='rgba(0,0,0,0.3)';X.beginPath();
+  X.ellipse(cx,pp.y+u*0.5,u*1.4,u*0.4,0,0,Math.PI*2);X.fill();
+  // Animated stride
   const animPhase=(p.anim||0)>0?Math.floor((p.anim||0)/4)%4:0;
   let lLegOff=0,rLegOff=0;
-  if(animPhase===1){lLegOff=-u*0.45;rLegOff=u*0.35;}
-  else if(animPhase===3){lLegOff=u*0.35;rLegOff=-u*0.45;}
-  X.fillStyle=dark;
+  if(animPhase===1){lLegOff=-u*0.5;rLegOff=u*0.4;}
+  else if(animPhase===3){lLegOff=u*0.4;rLegOff=-u*0.5;}
+  // === LEGS (white pants with team stripe) ===
+  const legW=u*0.48,legH=u*1.3;const legGap=u*0.38;
+  const legTop=baseY-u*0.4;
+  X.fillStyle='#eee';
   X.fillRect(cx-legGap-legW/2,legTop+lLegOff,legW,legH);
   X.fillRect(cx+legGap-legW/2,legTop+rLegOff,legW,legH);
-  // Shoes
-  X.fillStyle='#222';
-  X.fillRect(cx-legGap-legW/2-u*0.08,legTop+lLegOff+legH-u*0.3,legW+u*0.16,u*0.35);
-  X.fillRect(cx+legGap-legW/2-u*0.08,legTop+rLegOff+legH-u*0.3,legW+u*0.16,u*0.35);
-  // Torso (rounded rect)
-  const tW=u*2.2,tH=u*1.8;const tX=cx-tW/2,tY=baseY-u*2.3;
-  const tr=u*0.35;
+  // Pant stripe
+  X.fillStyle=col;
+  X.fillRect(cx-legGap-legW/2,legTop+lLegOff,legW*0.22,legH);
+  X.fillRect(cx+legGap+legW/2-legW*0.22,legTop+rLegOff,legW*0.22,legH);
+  // Cleats
+  X.fillStyle='#111';
+  X.fillRect(cx-legGap-legW/2-u*0.06,legTop+lLegOff+legH-u*0.28,legW+u*0.12,u*0.35);
+  X.fillRect(cx+legGap-legW/2-u*0.06,legTop+rLegOff+legH-u*0.28,legW+u*0.12,u*0.35);
+  // === TORSO (jersey with shoulder pads) ===
+  const tW=u*2.6,tH=u*1.9;const tX=cx-tW/2,tY=baseY-u*2.5;
+  const tr=u*0.4;
+  // Shoulder pad outline (wider than torso)
+  X.fillStyle=darkenCol(col,30);
+  X.beginPath();
+  X.moveTo(tX-u*0.3,tY+u*0.15);X.lineTo(tX+tW+u*0.3,tY+u*0.15);
+  X.lineTo(tX+tW+u*0.15,tY+u*0.7);X.lineTo(tX-u*0.15,tY+u*0.7);
+  X.closePath();X.fill();
+  // Main jersey
   X.fillStyle=col;
   X.beginPath();
   X.moveTo(tX+tr,tY);X.lineTo(tX+tW-tr,tY);X.quadraticCurveTo(tX+tW,tY,tX+tW,tY+tr);
@@ -2331,68 +2892,103 @@ function drawHuman(pp,p){
   X.lineTo(tX+tr,tY+tH);X.quadraticCurveTo(tX,tY+tH,tX,tY+tH-tr);
   X.lineTo(tX,tY+tr);X.quadraticCurveTo(tX,tY,tX+tr,tY);
   X.closePath();X.fill();
-  // Torso shading (subtle lighter top edge)
-  X.fillStyle='rgba(255,255,255,0.12)';
-  X.fillRect(tX+tr,tY,tW-2*tr,u*0.3);
-  // Jersey number on torso
-  if(s>0.3){
-    const fs=Math.max(5,Math.round(9*s));
+  // Jersey highlight (top)
+  const jGrad=X.createLinearGradient(tX,tY,tX,tY+tH);
+  jGrad.addColorStop(0,'rgba(255,255,255,0.18)');jGrad.addColorStop(0.4,'rgba(255,255,255,0)');
+  jGrad.addColorStop(1,'rgba(0,0,0,0.15)');
+  X.fillStyle=jGrad;
+  X.beginPath();
+  X.moveTo(tX+tr,tY);X.lineTo(tX+tW-tr,tY);X.quadraticCurveTo(tX+tW,tY,tX+tW,tY+tr);
+  X.lineTo(tX+tW,tY+tH-tr);X.quadraticCurveTo(tX+tW,tY+tH,tX+tW-tr,tY+tH);
+  X.lineTo(tX+tr,tY+tH);X.quadraticCurveTo(tX,tY+tH,tX,tY+tH-tr);
+  X.lineTo(tX,tY+tr);X.quadraticCurveTo(tX,tY,tX+tr,tY);
+  X.closePath();X.fill();
+  // Jersey number
+  if(s>0.28){
+    const fs=Math.max(6,Math.round(11*s));
     X.fillStyle='#fff';X.font=`bold ${fs}px sans-serif`;X.textAlign='center';X.textBaseline='middle';
+    X.strokeStyle='rgba(0,0,0,0.4)';X.lineWidth=Math.max(0.5,1.5*s);
+    X.strokeText(p.n,cx,tY+tH*0.52);
     X.fillText(p.n,cx,tY+tH*0.52);
   }
-  // Arms (animated opposite to legs)
-  const armW=u*0.38,armH=u*1.3;
+  // === ARMS ===
+  const armW=u*0.42,armH=u*1.2;
   let lArmOff=0,rArmOff=0;
-  if(animPhase===1){lArmOff=u*0.3;rArmOff=-u*0.25;}
-  else if(animPhase===3){lArmOff=-u*0.25;rArmOff=u*0.3;}
-  // Throw animation override
+  if(animPhase===1){lArmOff=u*0.35;rArmOff=-u*0.3;}
+  else if(animPhase===3){lArmOff=-u*0.3;rArmOff=u*0.35;}
   if(p===G.throwPlayer&&G.throwAnim>0){
-    if(G.throwAnim>6){rArmOff=-u*1.2;} // windup: arm up
-    else{rArmOff=u*0.8;} // release: arm forward/down
+    if(G.throwAnim>6){rArmOff=-u*1.4;}else{rArmOff=u*0.9;}
   }
-  // Catch animation override
   if(p===G.catchPlayer&&G.catchAnim>0){
-    lArmOff=-u*1.0;rArmOff=-u*1.0; // both arms raised
+    lArmOff=-u*1.2;rArmOff=-u*1.2;
   }
+  // Celebration arms
+  if(p._celeb){lArmOff=-u*1.5;rArmOff=-u*1.5;}
+  // Arm sleeves (team color)
+  X.fillStyle=col;
+  X.fillRect(tX-armW,tY+u*0.2+lArmOff,armW,armH*0.4);
+  X.fillRect(tX+tW,tY+u*0.2+rArmOff,armW,armH*0.4);
+  // Forearms (skin)
   X.fillStyle=skin;
-  X.fillRect(tX-armW,tY+u*0.25+lArmOff,armW,armH);
-  X.fillRect(tX+tW,tY+u*0.25+rArmOff,armW,armH);
-  // Hands
+  X.fillRect(tX-armW,tY+u*0.2+armH*0.4+lArmOff,armW,armH*0.6);
+  X.fillRect(tX+tW,tY+u*0.2+armH*0.4+rArmOff,armW,armH*0.6);
+  // Gloves (darker)
+  X.fillStyle='#333';
+  X.beginPath();X.arc(tX-armW/2,tY+u*0.2+armH+lArmOff,armW*0.5,0,Math.PI*2);X.fill();
+  X.beginPath();X.arc(tX+tW+armW/2,tY+u*0.2+armH+rArmOff,armW*0.5,0,Math.PI*2);X.fill();
+  // === NECK ===
   X.fillStyle=skin;
-  X.beginPath();X.arc(tX-armW/2,tY+u*0.25+armH+lArmOff,armW*0.45,0,Math.PI*2);X.fill();
-  X.beginPath();X.arc(tX+tW+armW/2,tY+u*0.25+armH+rArmOff,armW*0.45,0,Math.PI*2);X.fill();
-  // Neck
-  X.fillStyle=skin;
-  X.fillRect(cx-u*0.3,tY-u*0.3,u*0.6,u*0.45);
-  // Head / Helmet
-  const headR=u*0.72;const headY=tY-u*0.55-headR*0.3;
-  // Helmet (team color, slightly larger)
+  X.fillRect(cx-u*0.32,tY-u*0.28,u*0.64,u*0.4);
+  // === HEAD / HELMET ===
+  const headR=u*0.82;const headY=tY-u*0.6-headR*0.25;
+  // Helmet shell (team color)
   X.fillStyle=col;X.beginPath();X.arc(cx,headY,headR,0,Math.PI*2);X.fill();
+  // Helmet shine
+  const hGrad=X.createRadialGradient(cx-headR*0.3,headY-headR*0.3,headR*0.1,cx,headY,headR);
+  hGrad.addColorStop(0,'rgba(255,255,255,0.25)');hGrad.addColorStop(1,'rgba(0,0,0,0.1)');
+  X.fillStyle=hGrad;X.beginPath();X.arc(cx,headY,headR,0,Math.PI*2);X.fill();
   // Helmet outline
-  X.strokeStyle='rgba(0,0,0,0.3)';X.lineWidth=Math.max(0.5,1*s);
+  X.strokeStyle='rgba(0,0,0,0.35)';X.lineWidth=Math.max(0.8,1.5*s);
   X.beginPath();X.arc(cx,headY,headR,0,Math.PI*2);X.stroke();
-  // Facemask (white stripe across lower helmet)
-  if(s>0.28){
-    X.strokeStyle='rgba(255,255,255,0.7)';X.lineWidth=Math.max(0.5,1.2*s);
-    X.beginPath();X.moveTo(cx-headR*0.7,headY+headR*0.25);
-    X.lineTo(cx+headR*0.7,headY+headR*0.25);X.stroke();
-    // Face area (small skin-colored oval)
+  if(s>0.25){
+    // Facemask (grey cage)
+    X.strokeStyle='rgba(180,180,180,0.8)';X.lineWidth=Math.max(0.5,1.3*s);
+    const fmY=headY+headR*0.2;
+    X.beginPath();X.moveTo(cx-headR*0.65,fmY);X.lineTo(cx+headR*0.65,fmY);X.stroke();
+    X.beginPath();X.moveTo(cx-headR*0.55,fmY+headR*0.2);X.lineTo(cx+headR*0.55,fmY+headR*0.2);X.stroke();
+    // Facemask vertical bars
+    X.beginPath();X.moveTo(cx-headR*0.35,fmY-headR*0.1);X.lineTo(cx-headR*0.45,fmY+headR*0.3);X.stroke();
+    X.beginPath();X.moveTo(cx+headR*0.35,fmY-headR*0.1);X.lineTo(cx+headR*0.45,fmY+headR*0.3);X.stroke();
+    // Face opening
     X.fillStyle=skin;X.beginPath();
-    X.ellipse(cx,headY+headR*0.15,headR*0.35,headR*0.3,0,0,Math.PI*2);X.fill();
+    X.ellipse(cx,headY+headR*0.15,headR*0.3,headR*0.25,0,0,Math.PI*2);X.fill();
+    // Eye visor (dark tint)
+    if(s>0.35){
+      X.fillStyle='rgba(0,0,0,0.25)';X.beginPath();
+      X.ellipse(cx,headY+headR*0.08,headR*0.42,headR*0.12,0,0,Math.PI);X.fill();
+    }
   }
-  // Helmet stripe (center line on top)
-  if(s>0.35){
-    X.strokeStyle='rgba(255,255,255,0.4)';X.lineWidth=Math.max(0.5,1.5*s);
-    X.beginPath();X.moveTo(cx,headY-headR);X.lineTo(cx,headY-headR*0.1);X.stroke();
+  // Helmet stripe
+  if(s>0.3){
+    X.strokeStyle=c2==='#000000'?'rgba(255,255,255,0.35)':c2;
+    X.globalAlpha=0.6;X.lineWidth=Math.max(0.8,2*s);
+    X.beginPath();X.moveTo(cx,headY-headR);X.lineTo(cx,headY-headR*0.05);X.stroke();
+    X.globalAlpha=1;
   }
-  // Ball in hand if carrying
+  // === BALL ===
   if(p.hb||p===G.carrier){
-    const bx=tX+tW+armW*0.5,by=tY+u*0.25+armH-u*0.2+rArmOff;
+    const bx=tX+tW+armW*0.5,by=tY+u*0.2+armH-u*0.2+rArmOff;
     X.fillStyle='#8B4513';X.beginPath();
-    X.ellipse(bx,by,u*0.45,u*0.28,0.3,0,Math.PI*2);X.fill();
-    X.strokeStyle='#fff';X.lineWidth=Math.max(0.3,0.6*s);
-    X.beginPath();X.moveTo(bx-u*0.15,by);X.lineTo(bx+u*0.15,by);X.stroke();
+    X.ellipse(bx,by,u*0.5,u*0.3,0.3,0,Math.PI*2);X.fill();
+    // Laces
+    X.strokeStyle='#fff';X.lineWidth=Math.max(0.4,0.7*s);
+    X.beginPath();X.moveTo(bx-u*0.18,by);X.lineTo(bx+u*0.18,by);X.stroke();
+    // Cross laces
+    for(let li=-1;li<=1;li++){
+      X.beginPath();X.moveTo(bx+li*u*0.1,by-u*0.08);X.lineTo(bx+li*u*0.1,by+u*0.08);X.stroke();
+    }
   }
+  if(p===G.tackleRunner&&G.tackleAnim>0)X.restore();
 }
 function drawP(){
   const sorted=[...P].sort((a,b)=>a.y-b.y);
@@ -2496,6 +3092,11 @@ function drawStam(){
 
 // === PARTICLES ===
 function mkP(x,y,c,n){for(let i=0;i<n;i++)parts.push({x,y,vx:(Math.random()-0.5)*6,vy:(Math.random()-0.5)*6,l:1,d:0.02+Math.random()*0.03,s:2+Math.random()*4,c});}
+function hitStickEffect(x,y){
+  // Big hit particle burst - white flash + orange sparks
+  for(let i=0;i<20;i++)parts.push({x,y,vx:(Math.random()-0.5)*10,vy:(Math.random()-0.5)*10,l:1,d:0.04+Math.random()*0.04,s:3+Math.random()*5,c:'rgba(255,165,0,0.9)'});
+  for(let i=0;i<8;i++)parts.push({x,y,vx:(Math.random()-0.5)*5,vy:(Math.random()-0.5)*5,l:1,d:0.02,s:8+Math.random()*6,c:'rgba(255,255,255,0.7)'});
+}
 function updParts(){for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.x+=p.vx;p.y+=p.vy;p.vx*=0.96;p.vy*=0.96;p.l-=p.d;if(p.l<=0)parts.splice(i,1);}}
 function drawParts(){
   for(const p of parts){
@@ -2538,17 +3139,46 @@ function showDefenseConfirm(dp,cb){
 }
 function updSB(){
   const team=TEAMS[S.teamIdx];
-  sH.textContent=`${team.abbr}: ${G.hs}`;
-  let oppAbbr='CPU';
-  if(!S.isPlayoffs&&S.week<=13&&S.schedule.length>0){
-    oppAbbr=TEAMS[S.schedule[S.week-1].oppIdx].abbr;
+  const sHEl=document.getElementById('sH');
+  const sAEl=document.getElementById('sA');
+  let oppAbbr='CPU';let oppCol='#c0392b';
+  if(!S.isPlayoffs&&S.week<=17&&S.schedule.length>0){
+    const opp=TEAMS[S.schedule[S.week-1].oppIdx];
+    oppAbbr=opp.abbr;oppCol=opp.c1;
   }
-  sA.textContent=`${oppAbbr}: ${G.as}`;
+  sHEl.innerHTML=`<span style="font-size:16px">${team.abbr}</span> <span style="font-size:18px">${G.hs}</span>`;
+  sHEl.style.background=team.c1;sHEl.style.color='#fff';
+  sAEl.innerHTML=`<span style="font-size:16px">${oppAbbr}</span> <span style="font-size:18px">${G.as}</span>`;
+  sAEl.style.background=oppCol;sAEl.style.color='#fff';
   const ord=['1st','2nd','3rd','4th'][G.dn-1]||'4th';
-  const side=G.pos==='h'?'OFF':'DEF';
   const min=Math.floor(G.gameClock/60);const sec=G.gameClock%60;
   const clkStr=`${min}:${sec<10?'0':''}${sec}`;
-  sI.textContent=`Q${G.q} ${clkStr} | ${ord} & ${G.ytg} | ${side} | TO:${G.timeoutsH}`;
+  const side=G.pos==='h'?'OFFENSE':'DEFENSE';
+  document.getElementById('sI_top').textContent=`Q${G.q}  ${clkStr}`;
+  document.getElementById('sI_bot').innerHTML=`${ord} & ${G.ytg} <span style="color:#aaa;font-size:10px">| ${side} | TO:${G.timeoutsH}</span>`;
+}
+
+// === COMMENTARY SYSTEM ===
+let commentaryTimer=0;
+function showCommentary(text,duration){
+  const el=document.getElementById('commentary');
+  if(!el)return;
+  el.textContent=text;el.style.opacity='1';
+  clearTimeout(commentaryTimer);
+  commentaryTimer=setTimeout(()=>{el.style.opacity='0';},duration||2500);
+}
+function getQBName(){
+  const qb=S.roster.find(p=>p.pos==='QB');
+  return qb?qb.name.split(' ').pop():'QB';
+}
+function getCarrierName(){
+  const rb=S.roster.find(p=>p.pos==='RB');
+  return rb?rb.name.split(' ').pop():'RB';
+}
+function getWRName(idx){
+  const wrs=S.roster.filter(p=>p.pos.startsWith('WR'));
+  const wr=wrs[idx||0];
+  return wr?wr.name.split(' ').pop():'WR';
 }
 
 // === MAIN LOOP ===
@@ -2561,6 +3191,8 @@ function update(){
   if(['live','bia','rac','run','dl','dbia','drac'].includes(G.ph))tickGameClock();
   if(G.throwAnim>0){G.throwAnim--;if(G.throwAnim===6&&G.throwPending){executeThrow(G.throwPending.qb,G.throwPending.ddx,G.throwPending.ddy,G.throwPending.power);G.throwPending=null;}}
   if(G.catchAnim>0)G.catchAnim--;
+  if(G.camPan>0)G.camPan--;
+  if(G.celebTimer>0){G.celebTimer--;if(G.celebTimer<=0){G.celebPlayers.forEach(p=>{p._celeb=false;});G.celebPlayers=[];}}
   switch(G.ph){
     case 'live':updLive();break;
     case 'bia':updBIA();break;
@@ -2608,11 +3240,24 @@ function draw(){
   if(G.ph==='cointoss'){drawCoinToss();return;}
   if(G.ph==='halftime'){drawHalftime();return;}
   if(G.ph==='tut'){drawTut();return;}
+  // Pre-snap camera pan effect
+  let camActive=G.camPan>0&&G.camPanMax>0;
+  if(camActive){
+    const t=G.camPan/G.camPanMax;
+    const ease=t*t;// ease-out (starts zoomed, eases to normal)
+    const zoomAmt=1+ease*0.08;
+    const losY=y2y(G.camPanLOS);
+    const pp=project(W/2,losY);
+    const focusY=pp.y;
+    X.save();
+    X.translate(W/2,focusY);X.scale(zoomAmt,zoomAmt);X.translate(-W/2,-focusY);
+  }
   drawField();drawRoutes();drawParts();
   if(!['title','pp','go','xp','kick','punt','fumble'].includes(G.ph)){drawP();drawBall();drawStam();drawAim();}
   if(G.ph==='kick')drawKickMeter();
   if(G.ph==='punt'){drawP();drawPunt();}
   if(G.ph==='fumble'){drawP();drawFumble();}
+  if(camActive)X.restore();
 }
 function loop(){try{update();}catch(e){console.error('update:',e);}try{draw();}catch(e){console.error('draw:',e);}requestAnimationFrame(loop);}
 
